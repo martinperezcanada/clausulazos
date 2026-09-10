@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ClauseStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clausesMade     Clause[] @relation("ClausesMade")
+  clausesReceived Clause[] @relation("ClausesReceived")
+
+  @@map("users")
+}
+
+// A Clause ("clausulazo") occupies one "performed" slot for `fromUser`
+// and one "received" slot for `toUser`, for exactly 7 x 24h from createdAt.
+model Clause {
+  id         String       @id @default(uuid())
+  fromUserId String
+  toUserId   String
+  createdAt  DateTime     @default(now())
+  expiresAt  DateTime
+  status     ClauseStatus @default(ACTIVE)
+  cancelledAt DateTime?
+
+  fromUser User @relation("ClausesMade", fields: [fromUserId], references: [id])
+  toUser   User @relation("ClausesReceived", fields: [toUserId], references: [id])
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@map("clauses")
+}
