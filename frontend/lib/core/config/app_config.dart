@@ -7,8 +7,7 @@ class AppConfig {
   AppConfig._();
 
   /// Change this single line to switch environments.
-  static const AppEnvironment environment = AppEnvironment.development;
-
+  static const AppEnvironment environment = AppEnvironment.production;
   static String get apiBaseUrl {
     switch (environment) {
       case AppEnvironment.development:
@@ -19,7 +18,7 @@ class AppConfig {
         // IP for a physical device).
         return 'http://10.0.2.2:3000';
       case AppEnvironment.production:
-        return 'https://api.clausulazos.example.com';
+        return 'https://clausulazos.onrender.com';
     }
   }
 
