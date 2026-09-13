@@ -20,6 +20,7 @@ model User {
   password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  laligaUserId String? @unique
 
   clausesMade     Clause[] @relation("ClausesMade")
   clausesReceived Clause[] @relation("ClausesReceived")
@@ -30,7 +31,10 @@ model User {
 // A Clause ("clausulazo") occupies one "performed" slot for `fromUser`
 // and one "received" slot for `toUser`, for exactly 7 x 24h from createdAt.
 model Clause {
-  id         String       @id @default(uuid())
+  id               String       @id @default(uuid())
+  laligaActivityId String?      @unique
+  playerMasterId   String?
+
   fromUserId String
   toUserId   String
   createdAt  DateTime     @default(now())
