@@ -20,8 +20,7 @@ model User {
   password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  laligaUserId String? @unique
-
+laligaUserId String? @unique
   clausesMade     Clause[] @relation("ClausesMade")
   clausesReceived Clause[] @relation("ClausesReceived")
 
