@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
 import '../storage/token_storage.dart';
 
@@ -48,21 +49,57 @@ class ApiClient {
 
   Dio get dio => _dio;
 
-  /// Extracts a readable error message from a DioException's response
-  /// body (NestJS validation/errors typically look like { message: ... }).
+  /// Turns any error (Dio, socket, or otherwise) into a short, human
+  /// message safe to show in the UI. Technical details (status codes,
+  /// exception types, stack traces) are only ever printed to the debug
+  /// console — never surfaced to the person using the app.
   static String messageFromError(Object error) {
+    if (kDebugMode) {
+      // ignore: avoid_print
+      debugPrint('[ApiClient] $error');
+    }
+
     if (error is DioException) {
+      final status = error.response?.statusCode;
+      final path = error.requestOptions.path;
+
+      // Prefer the backend's own validation/business message when present
+      // — those are already written in plain Spanish for people (e.g.
+      // "Las contraseñas no coinciden"), not technical jargon.
       final data = error.response?.data;
-      if (data is Map && data['message'] != null) {
+      if (data is Map && data['message'] != null && status != null && status < 500) {
         final message = data['message'];
-        if (message is List) return message.join(', ');
-        return message.toString();
+        if (message is List && message.isNotEmpty) return message.join(', ');
+        if (message is String && message.isNotEmpty) return message;
       }
-      if (error.type == DioExceptionType.connectionTimeout ||
-          error.type == DioExceptionType.connectionError) {
-        return 'No se ha podido conectar con el servidor.';
+
+      if (status == 401) {
+        return 'Tu sesión ha expirado. Inicia sesión de nuevo.';
+      }
+      if (status == 403) {
+        return 'No tienes permiso para hacer esto.';
+      }
+      if (status == 404) {
+        return 'No se ha encontrado lo que buscabas.';
+      }
+      if (status != null && status >= 500) {
+        if (path.contains('fantasy')) {
+          return 'La sincronización no está disponible temporalmente.';
+        }
+        return 'Ha ocurrido un error. Inténtalo de nuevo.';
+      }
+
+      switch (error.type) {
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+        case DioExceptionType.connectionError:
+          return 'No se ha podido conectar con el servidor.';
+        default:
+          return 'Ha ocurrido un error. Inténtalo de nuevo.';
       }
     }
-    return 'Ha ocurrido un error inesperado.';
+
+    return 'Ha ocurrido un error. Inténtalo de nuevo.';
   }
 }

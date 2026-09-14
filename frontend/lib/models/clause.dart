@@ -53,6 +53,8 @@ class Clause {
     this.toConfirmation,
     this.fromUser,
     this.toUser,
+    this.playerName,
+    this.amount,
   });
 
   final String id;
@@ -66,6 +68,13 @@ class Clause {
   final ClauseClassification? toConfirmation;
   final AppUser? fromUser;
   final AppUser? toUser;
+  // Best-effort — LALIGA's sync payload doesn't always resolve a name for
+  // every movement type, so this can be null even for a real clause.
+  final String? playerName;
+  final int? amount;
+
+  /// Never leaves the UI showing a raw `null` where a player should be.
+  String get displayPlayerName => (playerName != null && playerName!.trim().isNotEmpty) ? playerName! : 'un jugador';
 
   /// A clause is active only if the backend marked it ACTIVE, it hasn't
   /// reached its expiration instant yet, AND it's classified as a real
@@ -100,6 +109,8 @@ class Clause {
       toConfirmation: _confirmationFromJson(json['toConfirmation'] as String?),
       fromUser: json['fromUser'] != null ? AppUser.fromJson(json['fromUser'] as Map<String, dynamic>) : null,
       toUser: json['toUser'] != null ? AppUser.fromJson(json['toUser'] as Map<String, dynamic>) : null,
+      playerName: json['playerName'] as String?,
+      amount: json['amount'] as int?,
     );
   }
 }

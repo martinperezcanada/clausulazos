@@ -69,6 +69,39 @@ export class AuthService {
     return this.toPublicUser(user);
   }
 
+  /**
+   * Issues a normal session (JWT + public user) for a user who has already
+   * been authenticated by some other means — used by the Passkeys flow
+   * once a WebAuthn assertion has been verified, so passkey login produces
+   * exactly the same session shape as email+password login.
+   */
+  async issueSessionFor(user: { id: string; email: string; name: string; createdAt: Date }) {
+    return this.buildAuthResponse(user);
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    const currentMatches = await bcrypt.compare(currentPassword, user.password);
+    if (!currentMatches) {
+      throw new BadRequestException('La contraseña actual no es correcta');
+    }
+    if (newPassword.length < 6) {
+      throw new BadRequestException('La nueva contraseña debe tener al menos 6 caracteres');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return { success: true };
+  }
+
   private buildAuthResponse(user: { id: string; email: string; name: string; createdAt: Date }) {
     const token = this.jwtService.sign({ sub: user.id, email: user.email });
     return {

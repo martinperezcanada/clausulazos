@@ -8,9 +8,12 @@ import 'core/storage/token_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/clause_provider.dart';
+import 'providers/passkeys_provider.dart';
 import 'providers/user_provider.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/clause_repository.dart';
+import 'repositories/fantasy_repository.dart';
+import 'repositories/passkeys_repository.dart';
 import 'repositories/user_repository.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -33,6 +36,8 @@ class _ClausulazosAppState extends State<ClausulazosApp> {
   late final AuthRepository _authRepository;
   late final UserRepository _userRepository;
   late final ClauseRepository _clauseRepository;
+  late final PasskeysRepository _passkeysRepository;
+  late final FantasyRepository _fantasyRepository;
   late final AuthProvider _authProvider;
   late final GoRouter _router;
 
@@ -54,8 +59,13 @@ class _ClausulazosAppState extends State<ClausulazosApp> {
         AuthRepository(apiClient: _apiClient, tokenStorage: _tokenStorage);
     _userRepository = UserRepository(apiClient: _apiClient);
     _clauseRepository = ClauseRepository(apiClient: _apiClient);
+    _passkeysRepository = PasskeysRepository(apiClient: _apiClient);
+    _fantasyRepository = FantasyRepository(apiClient: _apiClient);
 
-    _authProvider = AuthProvider(authRepository: _authRepository);
+    _authProvider = AuthProvider(
+      authRepository: _authRepository,
+      passkeysRepository: _passkeysRepository,
+    );
     _onUnauthorized = _authProvider.forceLogout;
 
     _router = AppRouter.build(_authProvider);
@@ -72,6 +82,11 @@ class _ClausulazosAppState extends State<ClausulazosApp> {
         ChangeNotifierProvider<ClauseProvider>(
           create: (_) => ClauseProvider(clauseRepository: _clauseRepository),
         ),
+        ChangeNotifierProvider<PasskeysProvider>(
+          create: (_) => PasskeysProvider(passkeysRepository: _passkeysRepository),
+        ),
+        Provider<FantasyRepository>.value(value: _fantasyRepository),
+        Provider<UserRepository>.value(value: _userRepository),
       ],
       child: MaterialApp.router(
         title: 'Clausulazos',

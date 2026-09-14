@@ -53,6 +53,13 @@ class AuthRepository {
 
   Future<void> logout() => _tokenStorage.clearToken();
 
+  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
+    await _apiClient.dio.post('/auth/change-password', data: {
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    });
+  }
+
   Future<AuthResult> _handleAuthResponse(Map<String, dynamic> data) async {
     final token = data['accessToken'] as String;
     await _tokenStorage.saveToken(token);

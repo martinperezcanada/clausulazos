@@ -1,19 +1,34 @@
 import 'package:flutter/foundation.dart';
 import '../core/network/api_client.dart';
+import '../core/webauthn/webauthn_client.dart';
 import '../models/user.dart';
 import '../repositories/auth_repository.dart';
+import '../repositories/passkeys_repository.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
 class AuthProvider extends ChangeNotifier {
-  AuthProvider({required AuthRepository authRepository}) : _authRepository = authRepository;
+  AuthProvider({
+    required AuthRepository authRepository,
+    required PasskeysRepository passkeysRepository,
+    WebAuthnClient? webAuthnClient,
+  })  : _authRepository = authRepository,
+        _passkeysRepository = passkeysRepository,
+        _webAuthnClient = webAuthnClient ?? const WebAuthnClient();
 
   final AuthRepository _authRepository;
+  final PasskeysRepository _passkeysRepository;
+  final WebAuthnClient _webAuthnClient;
 
   AuthStatus status = AuthStatus.unknown;
   AppUser? currentUser;
   String? errorMessage;
   bool isLoading = false;
+
+  /// Whether this browser can even attempt Face ID/Passkeys — checked
+  /// once and cached, so the login screen can hide the button entirely
+  /// instead of showing something that will just fail.
+  bool get passkeysSupported => _webAuthnClient.isSupported;
 
   /// Called by ApiClient when the backend responds 401 to any request.
   void forceLogout() {
@@ -59,6 +74,18 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
+  /// Full passkey login ceremony: fetch options from the backend, run
+  /// `navigator.credentials.get()` in the browser, then send the signed
+  /// assertion back to be verified. On success this produces exactly the
+  /// same session (JWT + user) as email+password login.
+  Future<bool> loginWithPasskey({String? email}) {
+    return _runAuthAction(() async {
+      final options = await _passkeysRepository.getAuthenticationOptions(email: email);
+      final credentialResponse = await _webAuthnClient.authenticate(options);
+      return _passkeysRepository.verifyAuthentication(credentialResponse);
+    });
+  }
+
   Future<bool> _runAuthAction(Future<AuthResult> Function() action) async {
     isLoading = true;
     errorMessage = null;
@@ -67,6 +94,25 @@ class AuthProvider extends ChangeNotifier {
       final result = await action();
       currentUser = result.user;
       status = AuthStatus.authenticated;
+      return true;
+    } on WebAuthnUnavailableException catch (e) {
+      errorMessage = e.message;
+      return false;
+    } catch (e) {
+      errorMessage = ApiClient.messageFromError(e);
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> changePassword({required String currentPassword, required String newPassword}) async {
+    isLoading = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      await _authRepository.changePassword(currentPassword: currentPassword, newPassword: newPassword);
       return true;
     } catch (e) {
       errorMessage = ApiClient.messageFromError(e);

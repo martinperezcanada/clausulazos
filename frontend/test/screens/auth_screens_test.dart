@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:clausulazos/core/theme/app_theme.dart';
+import 'package:clausulazos/core/webauthn/webauthn_client.dart';
 import 'package:clausulazos/providers/auth_provider.dart';
 import 'package:clausulazos/repositories/auth_repository.dart';
+import 'package:clausulazos/repositories/passkeys_repository.dart';
 import 'package:clausulazos/screens/auth/login_screen.dart';
 import 'package:clausulazos/screens/auth/register_screen.dart';
 import 'package:clausulazos/core/network/api_client.dart';
@@ -19,11 +21,30 @@ class _FakeAuthRepository extends AuthRepository {
         );
 }
 
+class _FakePasskeysRepository extends PasskeysRepository {
+  _FakePasskeysRepository() : super(apiClient: ApiClient(tokenStorage: TokenStorage()));
+}
+
+// Widget tests run on the Dart VM (not a real browser), so real
+// dart:js_interop calls to navigator.credentials aren't available here —
+// force "unsupported" so LoginScreen renders its normal email/password
+// form instead of the Face ID option, exactly like a real unsupported
+// browser would.
+class _FakeUnsupportedWebAuthnClient extends WebAuthnClient {
+  const _FakeUnsupportedWebAuthnClient();
+  @override
+  bool get isSupported => false;
+}
+
 Widget _wrap(Widget child) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider<AuthProvider>(
-        create: (_) => AuthProvider(authRepository: _FakeAuthRepository()),
+        create: (_) => AuthProvider(
+          authRepository: _FakeAuthRepository(),
+          passkeysRepository: _FakePasskeysRepository(),
+          webAuthnClient: const _FakeUnsupportedWebAuthnClient(),
+        ),
       ),
     ],
     child: MaterialApp(

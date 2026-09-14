@@ -1,11 +1,11 @@
 {
-    "name": "clausulazos",
-    "short_name": "clausulazos",
+    "name": "Clausulazos",
+    "short_name": "Clausulazos",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0B0F0D",
+    "theme_color": "#0B0F0D",
+    "description": "Gestiona los cláusulazos de tu liga Fantasy.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -81,6 +81,15 @@ export class FantasySyncService {
       const toLaligaUserId = String(activity.user2Id);
       const playerMasterId = String(activity.playerMasterId);
       const amount = Number(activity.amount);
+      // Best-effort: try the field names LALIGA's payload plausibly uses.
+      // If none of these exist, this stays null and nothing else changes —
+      // the clause is still saved exactly as before, just without a name
+      // to show in the UI (which then falls back to a generic label).
+      const playerName: string | null =
+        (activity.playerName as string | undefined) ??
+        (activity.player?.name as string | undefined) ??
+        (activity.player?.nickname as string | undefined) ??
+        null;
 
       // Evitar duplicados.
       const existingClause = await this.prisma.clause.findFirst({
@@ -154,6 +163,8 @@ export class FantasySyncService {
         data: {
           laligaActivityId,
           playerMasterId,
+          playerName,
+          amount: Number.isFinite(amount) ? amount : null,
           fromUserId: fromUser.id,
           toUserId: toUser.id,
           createdAt,

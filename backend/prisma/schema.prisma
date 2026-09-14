@@ -36,6 +36,7 @@ model User {
 laligaUserId String? @unique
   clausesMade     Clause[] @relation("ClausesMade")
   clausesReceived Clause[] @relation("ClausesReceived")
+  passkeys        PasskeyCredential[]
 
   @@map("users")
 }
@@ -46,6 +47,10 @@ model Clause {
   id               String       @id @default(uuid())
   laligaActivityId String?      @unique
   playerMasterId   String?
+  // Best-effort, read defensively from the LALIGA activity payload if
+  // present (falls back to null — never blocks saving the clause itself).
+  playerName       String?
+  amount           Int?
 
   fromUserId String
   toUserId   String
@@ -72,4 +77,58 @@ model Clause {
   @@index([fromUserId])
   @@index([toUserId])
   @@map("clauses")
+}
+
+// WebAuthn/Passkey credential. Only the pieces WebAuthn itself needs to
+// verify future signatures are stored — never anything biometric. Face
+// ID/Touch ID/PIN happen entirely on the user's device; the server only
+// ever sees the public key and a signature counter.
+model PasskeyCredential {
+  id           String    @id @default(uuid())
+  userId       String
+  // Base64url credential ID reported by the authenticator — unique per
+  // credential, used to look up which user/key to verify against on login.
+  credentialId String    @unique
+  publicKey    Bytes
+  // Signature counter for replay-attack detection: must strictly increase
+  // on every use (0 for authenticators that don't support counters, e.g.
+  // many platform authenticators using cloud-synced passkeys).
+  counter      Int       @default(0)
+  transports   String[]  @default([])
+  // 'singleDevice' | 'multiDevice' (per @simplewebauthn/server)
+  deviceType   String?
+  backedUp     Boolean   @default(false)
+  // User-facing label, e.g. "iPhone de Martín" — set from the device/
+  // browser at registration time so multiple passkeys stay distinguishable.
+  name         String?
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("passkey_credentials")
+}
+
+enum WebAuthnChallengeType {
+  REGISTRATION
+  AUTHENTICATION
+}
+
+// Single-use, expiring challenges for both registration and login
+// ceremonies. `userId` is null for a discoverable ("usernameless") login
+// attempt, where we don't know who's authenticating until the assertion
+// comes back. Rows are consumed (usedAt set) on first use and never reused
+// — this is what prevents replay attacks against the challenge itself.
+model WebAuthnChallenge {
+  id        String                @id @default(uuid())
+  userId    String?
+  challenge String                @unique
+  type      WebAuthnChallengeType
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime              @default(now())
+
+  @@index([challenge])
+  @@map("webauthn_challenges")
 }

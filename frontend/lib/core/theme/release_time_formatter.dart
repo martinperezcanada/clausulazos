@@ -27,4 +27,17 @@ class ReleaseTimeFormatter {
   }
 
   static String fullDateTime(DateTime dateTime) => _dateTimeFormat.format(dateTime);
+
+  /// Compact "Hoy · 18:32" / "Mañana · 18:32" / "d de MMMM · 18:32" label,
+  /// for tight dashboard cards (see HomeScreen "Próxima liberación").
+  static String dayAndTime(DateTime dateTime, {DateTime? now}) {
+    final nowTime = now ?? DateTime.now();
+    final today = DateTime(nowTime.year, nowTime.month, nowTime.day);
+    final day = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    final dayDiff = day.difference(today).inDays;
+
+    if (dayDiff == 0) return 'Hoy · ${_timeFormat.format(dateTime)}';
+    if (dayDiff == 1) return 'Mañana · ${_timeFormat.format(dateTime)}';
+    return fullDateTime(dateTime);
+  }
 }

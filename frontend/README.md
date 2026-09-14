@@ -113,16 +113,26 @@ el límite).
 ## Tests
 
 ```bash
-flutter test
+flutter test --platform chrome
 ```
+
+**Importante:** hay que usar `--platform chrome`, no `flutter test` a secas.
+Passkeys/Face ID usan `dart:js_interop` para hablar con la API WebAuthn
+real del navegador (ver `lib/core/webauthn/webauthn_client.dart` y
+`web/webauthn.js`) — `dart:js_interop` solo existe en el target web, así
+que cualquier test que (directa o indirectamente, vía `AuthProvider`)
+importe ese archivo falla al compilar en el runner por defecto (VM). Con
+`--platform chrome` corre en un Chrome real sin cabeza y funciona
+correctamente.
 
 Cubren:
 - Modelo `Clause.isActiveAt` (activo, expirado, cancelado, expiración exacta)
 - `ReleaseTimeFormatter` (hoy / mañana / en N días / disponible)
 - `StatCard` en 0/2, 1/2 y 2/2 (candado + "COMPLETO")
 - `PrimaryButton` deshabilitado / cargando
-- `PlayerCard` bloqueado vs. disponible (según plazas recibidas)
-- Validación de formularios de Login y Registro
+- `PlayerCard` — siempre pulsable (abre la ficha del manager), "COMPLETO" es solo informativo
+- Validación de formularios de Login y Registro (con `WebAuthnClient` fake, ver `test/screens/auth_screens_test.dart`)
+- `PasskeysProvider`/`AuthProvider.loginWithPasskey` — pendiente de tests de integración reales (necesitan un authenticator simulado; no se ha podido montar aquí, ver PROJECT_CONTEXT.md)
 
 ## Decisiones técnicas relevantes
 

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/release_time_formatter.dart';
 import '../models/clause.dart';
+
+final _amountFormat = NumberFormat.currency(locale: 'es_ES', symbol: '€', decimalDigits: 0);
 
 class ClauseCard extends StatelessWidget {
   const ClauseCard({
@@ -34,24 +37,23 @@ class ClauseCard extends StatelessWidget {
     final isCancelled = clause.status == ClauseStatus.cancelled;
     final canCancel = onCancel != null && isActive && clause.fromUserId == currentUserId;
 
-    final String headerEmoji;
-    final String statusLabel;
-    final Color statusColor;
-
+    // 🟢 CLAUSULAZO / 🔵 ACUERDO / 🟡 PENDIENTE — the three movement types,
+    // always distinguishable at a glance (rule from section 5).
+    final String dot;
+    final String typeLabel;
+    final Color typeColor;
     if (isPending) {
-      headerEmoji = '⏳';
-      statusLabel = 'PENDIENTE';
-      statusColor = AppColors.textSecondary;
+      dot = '🟡';
+      typeLabel = 'PENDIENTE';
+      typeColor = AppColors.pendingYellow;
     } else if (isAgreed) {
-      headerEmoji = '🤝';
-      statusLabel = 'ACUERDO';
-      statusColor = AppColors.primaryGreen;
+      dot = '🔵';
+      typeLabel = 'ACUERDO';
+      typeColor = AppColors.infoBlue;
     } else {
-      headerEmoji = '⚡';
-      statusLabel = isCancelled ? 'CANCELADO' : (isActive ? 'ACTIVO' : 'EXPIRADO');
-      statusColor = isCancelled
-          ? AppColors.textSecondary
-          : (isActive ? AppColors.primaryGreen : AppColors.dangerRed);
+      dot = '🟢';
+      typeLabel = 'CLAUSULAZO';
+      typeColor = AppColors.primaryGreen;
     }
 
     final canConfirm = onConfirm != null &&
@@ -70,7 +72,7 @@ class ClauseCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(headerEmoji, style: const TextStyle(fontSize: 18)),
+                Text(dot, style: const TextStyle(fontSize: 14)),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -81,35 +83,68 @@ class ClauseCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.15),
+                    color: typeColor.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    statusLabel,
-                    style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11),
+                    typeLabel,
+                    style: TextStyle(color: typeColor, fontWeight: FontWeight.bold, fontSize: 11),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(Icons.sports_soccer, size: 14, color: AppColors.textSecondary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    clause.displayPlayerName,
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                if (clause.amount != null)
+                  Text(
+                    _amountFormat.format(clause.amount),
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
             Text(
               ReleaseTimeFormatter.fullDateTime(clause.createdAt),
               style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
             ),
             if (!isPending && !isAgreed) ...[
               const SizedBox(height: 4),
-              Text(
-                isActive
-                    ? 'Se libera: ${ReleaseTimeFormatter.fullDateTime(clause.expiresAt)}'
-                    : 'Liberado: ${ReleaseTimeFormatter.fullDateTime(clause.expiresAt)}',
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              Row(
+                children: [
+                  Text(
+                    isCancelled ? 'Cancelado' : (isActive ? 'Activo' : 'Expirado'),
+                    style: TextStyle(
+                      color: isCancelled
+                          ? AppColors.textSecondary
+                          : (isActive ? AppColors.primaryGreen : AppColors.textSecondary),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Text(' · ', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  Text(
+                    isActive
+                        ? 'Se libera: ${ReleaseTimeFormatter.fullDateTime(clause.expiresAt)}'
+                        : 'Liberado: ${ReleaseTimeFormatter.fullDateTime(clause.expiresAt)}',
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  ),
+                ],
               ),
             ],
             if (isPending) ...[
               const SizedBox(height: 4),
               const Text(
-                'Pendiente de confirmar',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                'Pendiente de confirmar por ambos participantes',
+                style: TextStyle(color: AppColors.pendingYellow, fontSize: 12, fontWeight: FontWeight.w600),
               ),
             ],
             if (canConfirm) ...[
@@ -126,14 +161,14 @@ class ClauseCard extends StatelessWidget {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => onConfirm!('CLAUSE'),
-                        child: const Text('⚡ Cláusulazo'),
+                        child: const Text('🟢 Cláusulazo'),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => onConfirm!('AGREED'),
-                        child: const Text('🤝 Acuerdo'),
+                        child: const Text('🔵 Acuerdo'),
                       ),
                     ),
                   ],

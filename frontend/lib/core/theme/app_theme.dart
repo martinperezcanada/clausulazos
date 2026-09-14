@@ -14,6 +14,10 @@ class AppColors {
   static const Color textPrimary = Color(0xFFF5F7F6);
   static const Color textSecondary = Color(0xFF8B958F);
   static const Color divider = Color(0xFF232B25);
+  // Used only for the CLAUSE/AGREED/PENDING movement-type indicators
+  // (🟢/🔵/🟡) in the history — everything else keeps the palette above.
+  static const Color infoBlue = Color(0xFF3B82F6);
+  static const Color pendingYellow = Color(0xFFEAB308);
 }
 
 class AppTheme {

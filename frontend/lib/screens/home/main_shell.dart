@@ -26,7 +26,7 @@ class MainShell extends StatelessWidget {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Inicio'),
           BottomNavigationBarItem(icon: Text('🔥', style: TextStyle(fontSize: 20)), label: 'Actividad'),
-          BottomNavigationBarItem(icon: Icon(Icons.groups_rounded), label: 'Jugadores'),
+          BottomNavigationBarItem(icon: Icon(Icons.groups_rounded), label: 'Managers'),
           BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Perfil'),
         ],
       ),

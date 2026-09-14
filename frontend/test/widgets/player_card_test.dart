@@ -21,7 +21,10 @@ void main() {
     );
   }
 
-  testWidgets('un jugador con 2/2 recibidos aparece bloqueado y sin onTap', (tester) async {
+  // PlayerCard is used exclusively to open a manager's public profile —
+  // "COMPLETO" is shown informatively, but it must never block navigation
+  // (unlike the old, now-removed, manual-clause-creation flow).
+  testWidgets('un manager con 2/2 recibidos sigue siendo pulsable y muestra COMPLETO', (tester) async {
     final user = buildUser(receivedActive: 2, receivedLimit: 2);
     var tapped = false;
 
@@ -32,12 +35,12 @@ void main() {
       ),
     ));
 
-    expect(find.byIcon(Icons.lock), findsOneWidget);
+    expect(find.textContaining('COMPLETO'), findsOneWidget);
     await tester.tap(find.byType(PlayerCard));
-    expect(tapped, isFalse);
+    expect(tapped, isTrue);
   });
 
-  testWidgets('un jugador con 0/2 recibidos permite pulsar', (tester) async {
+  testWidgets('un manager con 0/2 recibidos permite pulsar y no muestra COMPLETO', (tester) async {
     final user = buildUser(receivedActive: 0, receivedLimit: 2);
     var tapped = false;
 
@@ -48,7 +51,7 @@ void main() {
       ),
     ));
 
-    expect(find.byIcon(Icons.lock), findsNothing);
+    expect(find.textContaining('COMPLETO'), findsNothing);
     await tester.tap(find.byType(PlayerCard));
     expect(tapped, isTrue);
   });
