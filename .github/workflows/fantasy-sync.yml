@@ -1,0 +1,15 @@
+name: Fantasy Sync
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ejecutar sincronización
+        run: |
+          curl -f https://clausulazos.onrender.com/fantasy/sync
