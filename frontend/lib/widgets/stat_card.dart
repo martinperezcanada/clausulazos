@@ -9,15 +9,30 @@ class StatCard extends StatelessWidget {
     required this.title,
     required this.stats,
     required this.availableLabelBuilder,
+    this.overLimitCategory,
   });
 
   final String title;
   final SlotStats stats;
   final String Function(int available) availableLabelBuilder;
 
+  /// e.g. 'realizados' / 'recibidos' — used to build the over-limit warning
+  /// text. Only needed when this card can ever show an excess; optional so
+  /// this widget stays usable without it if ever reused elsewhere.
+  final String? overLimitCategory;
+
+  String? _overLimitMessage() {
+    if (overLimitCategory == null) return null;
+    final excess = stats.active - stats.limit;
+    if (excess <= 0) return null;
+    if (excess == 1) return 'Has superado el límite de cláusulazos $overLimitCategory.';
+    return 'Has superado el límite por $excess cláusulazos.';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isComplete = stats.isComplete;
+    final isExceeded = stats.isExceeded;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -41,11 +56,11 @@ class StatCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '${stats.active} / ${stats.limit}',
-                    style: const TextStyle(
+                    '${isExceeded ? '⚠️ ' : ''}${stats.active} / ${stats.limit}',
+                    style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: isExceeded ? AppColors.dangerRed : AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -88,6 +103,34 @@ class StatCard extends StatelessWidget {
                 Text(
                   ReleaseTimeFormatter.describe(stats.nextReleaseAt!),
                   style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                ),
+              ],
+              if (isExceeded && _overLimitMessage() != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.dangerRed.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('⚠️', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _overLimitMessage()!,
+                          style: const TextStyle(
+                            color: AppColors.dangerRed,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ],

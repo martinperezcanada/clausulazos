@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/theme/release_time_formatter.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
-import '../../widgets/primary_button.dart';
 import '../../widgets/stat_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -64,27 +61,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         title: 'Cláusulazos realizados',
                         stats: stats.performed,
                         availableLabelBuilder: (n) => 'Puedes hacer $n más',
+                        overLimitCategory: 'realizados',
                       ),
                       const SizedBox(height: 14),
                       StatCard(
                         title: 'Cláusulazos recibidos',
                         stats: stats.received,
                         availableLabelBuilder: (n) => 'Puedes recibir $n más',
+                        overLimitCategory: 'recibidos',
                       ),
-                      const SizedBox(height: 24),
-                      if (stats.performed.isComplete)
-                        LockedButton(
-                          title: 'Has utilizado tus 2 plazas.',
-                          subtitle: stats.performed.nextReleaseAt != null
-                              ? 'Primera plaza disponible: ${ReleaseTimeFormatter.fullDateTime(stats.performed.nextReleaseAt!)}'
-                              : null,
-                        )
-                      else
-                        PrimaryButton(
-                          label: 'HACER CLAUSULAZO',
-                          icon: Icons.local_fire_department_rounded,
-                          onPressed: () => context.push('/select-player'),
-                        ),
                     ],
                     if (userProvider.errorMessage != null) ...[
                       const SizedBox(height: 16),

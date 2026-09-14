@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/clause_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../widgets/clause_card.dart';
 
 class ActivityScreen extends StatefulWidget {
@@ -24,6 +25,16 @@ class _ActivityScreenState extends State<ActivityScreen> {
     final ok = await context.read<ClauseProvider>().cancelClause(clauseId);
     if (ok) {
       await context.read<ClauseProvider>().loadHistory();
+    }
+  }
+
+  Future<void> _confirm(String clauseId, String classification) async {
+    // The provider updates that one card in-place, so we don't need to
+    // reload the whole history — but the user's own slot counts may have
+    // changed, so refresh stats used elsewhere (Home/Players) too.
+    final ok = await context.read<ClauseProvider>().confirmClassification(clauseId, classification);
+    if (ok && mounted) {
+      await context.read<UserProvider>().refreshStatsOnly();
     }
   }
 
@@ -55,6 +66,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
                         clause: clause,
                         currentUserId: myId,
                         onCancel: () => _cancel(clause.id),
+                        onConfirm: (classification) => _confirm(clause.id, classification),
+                        isConfirming: clauseProvider.confirmingIds.contains(clause.id),
                       );
                     },
                   ),

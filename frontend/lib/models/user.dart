@@ -39,6 +39,12 @@ class SlotStats {
 
   bool get isComplete => available <= 0;
 
+  /// True when `active` has gone past `limit` — e.g. a third LALIGA-detected
+  /// clause got confirmed while two were already active. The backend never
+  /// hides this (it doesn't clamp `active`), so the UI can warn instead of
+  /// silently showing a wrong "2/2".
+  bool get isExceeded => active > limit;
+
   factory SlotStats.fromJson(Map<String, dynamic> json) {
     return SlotStats(
       active: json['active'] as int,

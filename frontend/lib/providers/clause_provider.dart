@@ -10,8 +10,11 @@ class ClauseProvider extends ChangeNotifier {
 
   List<Clause> history = [];
   bool isLoading = false;
-  bool isSubmitting = false;
   String? errorMessage;
+
+  /// Ids of clauses currently being confirmed, so the UI can show a
+  /// per-card loading state instead of blocking the whole screen.
+  final Set<String> confirmingIds = {};
 
   Future<void> loadHistory() async {
     isLoading = true;
@@ -27,21 +30,25 @@ class ClauseProvider extends ChangeNotifier {
     }
   }
 
-  /// Returns the created Clause on success, or null (with [errorMessage]
-  /// set) if the backend rejected the operation — e.g. because the
-  /// destination just filled their last slot in a race with someone else.
-  Future<Clause?> makeClause(String toUserId) async {
-    isSubmitting = true;
+  /// Records the current user's vote on what a PENDING movement was.
+  /// Returns true on success — the caller should refresh history/stats
+  /// afterwards, since this may also change the requester's slot counts.
+  Future<bool> confirmClassification(String clauseId, String classification) async {
+    confirmingIds.add(clauseId);
     errorMessage = null;
     notifyListeners();
     try {
-      final clause = await _clauseRepository.createClause(toUserId);
-      return clause;
+      final updated = await _clauseRepository.confirmClassification(clauseId, classification);
+      final index = history.indexWhere((c) => c.id == clauseId);
+      if (index != -1) {
+        history[index] = updated;
+      }
+      return true;
     } catch (e) {
       errorMessage = ApiClient.messageFromError(e);
-      return null;
+      return false;
     } finally {
-      isSubmitting = false;
+      confirmingIds.remove(clauseId);
       notifyListeners();
     }
   }

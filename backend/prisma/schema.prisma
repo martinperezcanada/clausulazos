@@ -13,6 +13,19 @@ enum ClauseStatus {
   CANCELLED
 }
 
+// PENDING: detected automatically from LALIGA, not yet confirmed by either
+//          participant — does not count toward the 2-slot limits.
+// CLAUSE:  confirmed as a real clausulazo — counts toward the limits.
+// AGREED:  confirmed by BOTH participants as a pacted transfer — never
+//          counts toward the limits, regardless of the 7-day window.
+// Existing rows created before this feature default to CLAUSE via the
+// migration backfill, so old clauses keep counting exactly as before.
+enum ClauseClassification {
+  PENDING
+  CLAUSE
+  AGREED
+}
+
 model User {
   id        String   @id @default(uuid())
   name      String
@@ -40,6 +53,18 @@ model Clause {
   expiresAt  DateTime
   status     ClauseStatus @default(ACTIVE)
   cancelledAt DateTime?
+
+  // Classification workflow (see ClauseClassification above). Defaults to
+  // CLAUSE so existing/manually-created clauses keep counting exactly as
+  // before; the LALIGA sync explicitly overrides this to PENDING for
+  // newly-detected movements.
+  classification   ClauseClassification  @default(CLAUSE)
+  // Each participant's own vote on what the movement was. Only becomes
+  // AGREED (excluded from stats) once BOTH sides independently confirm
+  // AGREED — neither side can unilaterally remove a clause from the
+  // limits by classifying it alone.
+  fromConfirmation ClauseClassification?
+  toConfirmation   ClauseClassification?
 
   fromUser User @relation("ClausesMade", fields: [fromUserId], references: [id])
   toUser   User @relation("ClausesReceived", fields: [toUserId], references: [id])

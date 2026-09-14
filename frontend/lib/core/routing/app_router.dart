@@ -6,14 +6,11 @@ import '../../screens/activity/activity_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
 import '../../screens/auth/welcome_screen.dart';
-import '../../screens/clauses/confirm_clause_screen.dart';
-import '../../screens/clauses/select_player_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/home/main_shell.dart';
 import '../../screens/players/players_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/splash/splash_screen.dart';
-import '../../models/user.dart';
 
 class AppRouter {
   AppRouter._();
@@ -46,16 +43,6 @@ class AppRouter {
         GoRoute(path: '/welcome', builder: (context, state) => const WelcomeScreen()),
         GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
         GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
-        GoRoute(
-          path: '/select-player',
-          builder: (context, state) => const SelectPlayerScreen(),
-        ),
-        GoRoute(
-          path: '/confirm-clause',
-          builder: (context, state) => ConfirmClauseScreen(
-            player: state.extra as AppUser,
-          ),
-        ),
         ShellRoute(
           builder: (context, state, child) => MainShell(child: child),
           routes: [

@@ -48,6 +48,7 @@ describe('ClausesService (integration)', () => {
     toId: string;
     createdAt: Date;
     status?: 'ACTIVE' | 'EXPIRED' | 'CANCELLED';
+    classification?: 'PENDING' | 'CLAUSE' | 'AGREED';
   }) {
     return prisma.clause.create({
       data: {
@@ -56,6 +57,7 @@ describe('ClausesService (integration)', () => {
         createdAt: opts.createdAt,
         expiresAt: computeExpiresAt(opts.createdAt),
         status: (opts.status as any) ?? 'ACTIVE',
+        classification: (opts.classification as any) ?? 'CLAUSE',
       },
     });
   }
@@ -228,5 +230,110 @@ describe('ClausesService (integration)', () => {
 
     const history = await service.findForUser(a.id);
     expect(history.some((c) => c.id === clause.id)).toBe(true);
+  });
+
+  // --- Classification workflow (PENDING / CLAUSE / AGREED) ---
+
+  it('un movimiento PENDING no cuenta para los límites de ninguno de los dos', async () => {
+    const a = await makeUser('A15');
+    const b = await makeUser('B15');
+    await makeClause({ fromId: a.id, toId: b.id, createdAt: new Date(), classification: 'PENDING' });
+
+    const statsA = await service.getStatsForUser(a.id);
+    const statsB = await service.getStatsForUser(b.id);
+    expect(statsA.performed.active).toBe(0);
+    expect(statsB.received.active).toBe(0);
+  });
+
+  it('un movimiento AGREED no cuenta aunque no hayan pasado los 7 días', async () => {
+    const a = await makeUser('A16');
+    const b = await makeUser('B16');
+    await makeClause({ fromId: a.id, toId: b.id, createdAt: new Date(), classification: 'AGREED' });
+
+    const statsA = await service.getStatsForUser(a.id);
+    const statsB = await service.getStatsForUser(b.id);
+    expect(statsA.performed.active).toBe(0);
+    expect(statsB.received.active).toBe(0);
+  });
+
+  it('un tercer movimiento PENDING no se bloquea aunque ya haya 2 CLAUSE activas', async () => {
+    const a = await makeUser('A17');
+    const b = await makeUser('B17');
+    const c = await makeUser('C17');
+    const d = await makeUser('D17');
+    await makeClause({ fromId: a.id, toId: b.id, createdAt: new Date(), classification: 'CLAUSE' });
+    await makeClause({ fromId: a.id, toId: c.id, createdAt: new Date(), classification: 'CLAUSE' });
+    // A third movement for `a`, arriving as PENDING (as the LALIGA sync does) — must be
+    // stored, and reading stats afterwards must not throw or block anything.
+    const third = await makeClause({ fromId: a.id, toId: d.id, createdAt: new Date(), classification: 'PENDING' });
+    expect(third.id).toBeDefined();
+
+    const statsA = await service.getStatsForUser(a.id);
+    expect(statsA.performed.active).toBe(2); // the two CLAUSE ones only
+  });
+
+  it('cuando un movimiento CLAUSE supera el límite de 2, las stats reflejan el exceso sin ocultarlo', async () => {
+    const a = await makeUser('A18');
+    const b = await makeUser('B18');
+    const c = await makeUser('C18');
+    const d = await makeUser('D18');
+    await makeClause({ fromId: a.id, toId: b.id, createdAt: new Date(), classification: 'CLAUSE' });
+    await makeClause({ fromId: a.id, toId: c.id, createdAt: new Date(), classification: 'CLAUSE' });
+    await makeClause({ fromId: a.id, toId: d.id, createdAt: new Date(), classification: 'CLAUSE' });
+
+    const statsA = await service.getStatsForUser(a.id);
+    expect(statsA.performed.active).toBe(3); // not clamped to 2 — the excess must be visible
+    expect(statsA.performed.limit).toBe(2);
+  });
+
+  it('confirmClassification: solo un participante puede confirmar', async () => {
+    const a = await makeUser('A19');
+    const b = await makeUser('B19');
+    const outsider = await makeUser('X19');
+    const clause = await makeClause({ fromId: a.id, toId: b.id, createdAt: new Date(), classification: 'PENDING' });
+
+    await expect(
+      service.confirmClassification(clause.id, outsider.id, 'AGREED'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('confirmClassification: solo pasa a AGREED cuando AMBOS confirman acuerdo', async () => {
+    const a = await makeUser('A20');
+    const b = await makeUser('B20');
+    const clause = await makeClause({ fromId: a.id, toId: b.id, createdAt: new Date(), classification: 'PENDING' });
+
+    const afterFrom = await service.confirmClassification(clause.id, a.id, 'AGREED');
+    expect(afterFrom.classification).toBe('PENDING'); // only one side confirmed so far
+
+    const afterBoth = await service.confirmClassification(clause.id, b.id, 'AGREED');
+    expect(afterBoth.classification).toBe('AGREED');
+
+    const stats = await service.getStatsForUser(a.id);
+    expect(stats.performed.active).toBe(0); // AGREED never counts
+  });
+
+  it('confirmClassification: una discrepancia (uno CLAUSE, otro AGREED) nunca resuelve a AGREED', async () => {
+    const a = await makeUser('A21');
+    const b = await makeUser('B21');
+    const clause = await makeClause({ fromId: a.id, toId: b.id, createdAt: new Date(), classification: 'PENDING' });
+
+    await service.confirmClassification(clause.id, a.id, 'CLAUSE');
+    const afterDiscrepancy = await service.confirmClassification(clause.id, b.id, 'AGREED');
+
+    expect(afterDiscrepancy.classification).toBe('CLAUSE');
+
+    const stats = await service.getStatsForUser(a.id);
+    expect(stats.performed.active).toBe(1); // still counts — no unilateral opt-out
+  });
+
+  it('confirmClassification: un solo voto CLAUSE ya hace que empiece a contar', async () => {
+    const a = await makeUser('A22');
+    const b = await makeUser('B22');
+    const clause = await makeClause({ fromId: a.id, toId: b.id, createdAt: new Date(), classification: 'PENDING' });
+
+    await service.confirmClassification(clause.id, b.id, 'CLAUSE');
+
+    const stats = await service.getStatsForUser(a.id);
+    expect(stats.performed.active).toBe(1);
   });
 });

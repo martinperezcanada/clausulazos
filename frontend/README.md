@@ -75,7 +75,7 @@ URL de producción cuando toque desplegar.
 
 ## Refresco de datos (regla #35)
 
-`HomeScreen`, `PlayersScreen` y `SelectPlayerScreen` vuelven a pedir datos
+`HomeScreen`, `PlayersScreen` y `ActivityScreen` vuelven a pedir datos
 al backend:
 - al entrar en la pantalla,
 - con pull-to-refresh,
@@ -86,12 +86,29 @@ al backend:
 
 ## Backend como autoridad (regla #9)
 
-El backend es quien decide si un cláusulazo es válido. La UI muestra
-candados/deshabilita botones como ayuda visual, pero el botón "CONFIRMAR
-CLÁUSULAZO" siempre hace la petición real: si el backend la rechaza (por
-ejemplo, por una condición de carrera resuelta a favor de otro jugador),
-`ConfirmClauseScreen` muestra el error tal cual lo devuelve la API, no
-un mensaje inventado en el cliente.
+El backend es quien decide si un movimiento cuenta como cláusulazo. Los
+cláusulazos ya no se crean manualmente desde la app — se detectan
+automáticamente vía sincronización con LALIGA Fantasy y llegan como
+`PENDING`. Cada participante confirma en `ActivityScreen` si fue un
+cláusulazo real o un acuerdo pactado (`PATCH /clauses/:id/classification`);
+la clasificación final siempre la resuelve el backend a partir de ambas
+confirmaciones — ningún participante puede, por sí solo, sacar un
+movimiento de sus estadísticas.
+
+## Clasificación de movimientos: PENDING / CLAUSE / AGREED
+
+- **PENDING**: recién detectado por la sincronización con LALIGA, sin
+  confirmar todavía. No ocupa ninguna plaza.
+- **CLAUSE**: confirmado como cláusulazo real. Cuenta para el límite de 2.
+- **AGREED**: confirmado por AMBOS participantes como un acuerdo pactado.
+  Nunca cuenta, aunque no hayan pasado los 7 días.
+
+`ClauseCard` muestra el icono correspondiente (⏳ / ⚡ / 🤝) y, mientras el
+movimiento está pendiente, ofrece a cada participante botones para
+confirmar su versión. `StatCard` añade un aviso ⚠️ cuando el número de
+cláusulas activas supera el límite de 2 (algo que puede ocurrir porque el
+backend nunca descarta un movimiento de LALIGA solo por haber alcanzado
+el límite).
 
 ## Tests
 
@@ -117,5 +134,4 @@ Cubren:
   (`redirect`), en vez de repetir comprobaciones en cada pantalla.
 - **`AppUser.stats` opcional dentro del propio modelo de usuario**: el
   backend ya devuelve las stats embebidas en `GET /users`, así que no
-  hace falta una petición aparte por jugador para pintar `PlayersScreen`
-  o `SelectPlayerScreen`.
+  hace falta una petición aparte por jugador para pintar `PlayersScreen`.

@@ -139,71 +139,17 @@ export class FantasySyncService {
         continue;
       }
 
-      const now = new Date();
-
-      // Contamos solamente cláusulas que sigan activas.
-      const performedActive = await this.prisma.clause.count({
-        where: {
-          fromUserId: fromUser.id,
-          status: 'ACTIVE',
-          expiresAt: {
-            gt: now,
-          },
-        },
-      });
-
-      const receivedActive = await this.prisma.clause.count({
-        where: {
-          toUserId: toUser.id,
-          status: 'ACTIVE',
-          expiresAt: {
-            gt: now,
-          },
-        },
-      });
-
-      // Regla: máximo 2 cláusulazos realizados.
-      if (performedActive >= 2) {
-        skippedLimit++;
-
-        detected.push({
-          laligaActivityId,
-          fromLaligaUserId,
-          toLaligaUserId,
-          playerMasterId,
-          amount,
-          createdAt: createdAt.toISOString(),
-          status: 'SKIPPED_LIMIT',
-          reason: `${fromUser.name} ya tiene 2 cláusulazos realizados activos`,
-        });
-
-        continue;
-      }
-
-      // Regla: máximo 2 cláusulazos recibidos.
-      if (receivedActive >= 2) {
-        skippedLimit++;
-
-        detected.push({
-          laligaActivityId,
-          fromLaligaUserId,
-          toLaligaUserId,
-          playerMasterId,
-          amount,
-          createdAt: createdAt.toISOString(),
-          status: 'SKIPPED_LIMIT',
-          reason: `${toUser.name} ya tiene 2 cláusulazos recibidos activos`,
-        });
-
-        continue;
-      }
-
       // Exactamente 7 días desde el momento del cláusulazo.
       const expiresAt = new Date(
         createdAt.getTime() + 7 * 24 * 60 * 60 * 1000,
       );
 
-      // Guardar cláusulazo en PostgreSQL.
+      // Guardar el movimiento en PostgreSQL SIEMPRE, sin importar cuántas
+      // cláusulas activas tenga ya cada usuario: no queremos perder
+      // información de LALIGA. Como PENDING no ocupa plaza, un tercer (o
+      // cuarto...) movimiento no rompe el límite de 2 — simplemente queda
+      // pendiente de confirmar como cualquier otro, y si finalmente se
+      // confirma como CLAUSE, la app mostrará el aviso de exceso.
       await this.prisma.clause.create({
         data: {
           laligaActivityId,
@@ -213,6 +159,7 @@ export class FantasySyncService {
           createdAt,
           expiresAt,
           status: 'ACTIVE',
+          classification: 'PENDING',
         },
       });
 

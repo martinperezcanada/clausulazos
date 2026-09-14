@@ -4,11 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ClauseStatus, Prisma } from '@prisma/client';
+import { ClauseClassification, ClauseStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   MAX_ACTIVE_CLAUSES,
   computeExpiresAt,
+  resolveClassification,
 } from './clauses.constants';
 
 export interface SlotStats {
@@ -84,6 +85,7 @@ export class ClausesService {
           createdAt,
           expiresAt,
           status: ClauseStatus.ACTIVE,
+          classification: ClauseClassification.CLAUSE,
         },
         include: { fromUser: true, toUser: true },
       });
@@ -114,6 +116,54 @@ export class ClausesService {
     });
   }
 
+  /**
+   * Records `requesterId`'s own vote on what a PENDING (or still-disputed)
+   * movement was. The requester must be one of the two participants — the
+   * backend never trusts Flutter for this. The final `classification` is
+   * always recomputed from BOTH sides' confirmations via
+   * `resolveClassification`, so a single participant can never unilaterally
+   * push a movement into AGREED.
+   */
+  async confirmClassification(
+    clauseId: string,
+    requesterId: string,
+    classification: 'CLAUSE' | 'AGREED',
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const clause = await tx.clause.findUnique({ where: { id: clauseId } });
+      if (!clause) {
+        throw new NotFoundException('Movimiento no encontrado');
+      }
+
+      const isFromUser = clause.fromUserId === requesterId;
+      const isToUser = clause.toUserId === requesterId;
+      if (!isFromUser && !isToUser) {
+        throw new ForbiddenException(
+          'Solo los participantes de este movimiento pueden confirmarlo',
+        );
+      }
+
+      const nextFromConfirmation = isFromUser
+        ? (classification as ClauseClassification)
+        : clause.fromConfirmation;
+      const nextToConfirmation = isToUser
+        ? (classification as ClauseClassification)
+        : clause.toConfirmation;
+
+      const resolved = resolveClassification(nextFromConfirmation, nextToConfirmation);
+
+      return tx.clause.update({
+        where: { id: clauseId },
+        data: {
+          fromConfirmation: nextFromConfirmation,
+          toConfirmation: nextToConfirmation,
+          classification: ClauseClassification[resolved],
+        },
+        include: { fromUser: true, toUser: true },
+      });
+    });
+  }
+
   async findAll() {
     return this.prisma.clause.findMany({
       orderBy: { createdAt: 'desc' },
@@ -131,21 +181,35 @@ export class ClausesService {
 
   /**
    * A clause counts as "active" only if:
-   *   - status is ACTIVE (i.e. not manually cancelled), AND
-   *   - expiresAt is still in the future.
-   * Expired/cancelled clauses are kept in the table for history but
-   * never count against the 2-slot limit.
+   *   - status is ACTIVE (i.e. not manually cancelled),
+   *   - expiresAt is still in the future, AND
+   *   - classification is CLAUSE (PENDING movements awaiting confirmation
+   *     and AGREED pacted transfers never occupy a slot, however recent).
+   * Expired/cancelled/agreed clauses are kept in the table for history but
+   * never count against the 2-slot limit. `active` is intentionally NOT
+   * clamped to the limit, so callers can detect and warn about an excess
+   * (e.g. a third LALIGA-detected clause) instead of silently hiding it.
    */
   async getStatsForUser(userId: string): Promise<UserStats> {
     const now = new Date();
 
     const [activePerformed, activeReceived] = await Promise.all([
       this.prisma.clause.findMany({
-        where: { fromUserId: userId, status: ClauseStatus.ACTIVE, expiresAt: { gt: now } },
+        where: {
+          fromUserId: userId,
+          status: ClauseStatus.ACTIVE,
+          classification: ClauseClassification.CLAUSE,
+          expiresAt: { gt: now },
+        },
         orderBy: { expiresAt: 'asc' },
       }),
       this.prisma.clause.findMany({
-        where: { toUserId: userId, status: ClauseStatus.ACTIVE, expiresAt: { gt: now } },
+        where: {
+          toUserId: userId,
+          status: ClauseStatus.ACTIVE,
+          classification: ClauseClassification.CLAUSE,
+          expiresAt: { gt: now },
+        },
         orderBy: { expiresAt: 'asc' },
       }),
     ]);
@@ -172,7 +236,12 @@ export class ClausesService {
   ) {
     const { now, ...rest } = where;
     return tx.clause.count({
-      where: { ...rest, status: ClauseStatus.ACTIVE, expiresAt: { gt: now } },
+      where: {
+        ...rest,
+        status: ClauseStatus.ACTIVE,
+        classification: ClauseClassification.CLAUSE,
+        expiresAt: { gt: now },
+      },
     });
   }
 

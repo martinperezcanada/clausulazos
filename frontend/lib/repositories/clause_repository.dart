@@ -6,11 +6,6 @@ class ClauseRepository {
 
   final ApiClient _apiClient;
 
-  Future<Clause> createClause(String toUserId) async {
-    final response = await _apiClient.dio.post('/clauses', data: {'toUserId': toUserId});
-    return Clause.fromJson(response.data as Map<String, dynamic>);
-  }
-
   Future<List<Clause>> fetchAll() async {
     final response = await _apiClient.dio.get('/clauses');
     return (response.data as List).map((e) => Clause.fromJson(e as Map<String, dynamic>)).toList();
@@ -19,6 +14,16 @@ class ClauseRepository {
   Future<List<Clause>> fetchMine() async {
     final response = await _apiClient.dio.get('/clauses/me');
     return (response.data as List).map((e) => Clause.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// `classification` must be 'CLAUSE' or 'AGREED' — the backend rejects
+  /// anything else and re-checks that the caller is actually a participant.
+  Future<Clause> confirmClassification(String clauseId, String classification) async {
+    final response = await _apiClient.dio.patch(
+      '/clauses/$clauseId/classification',
+      data: {'classification': classification},
+    );
+    return Clause.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<void> cancel(String clauseId) async {
