@@ -1,16 +1,17 @@
 import { Injectable } from '@nestjs/common';
+import { FantasyAuthService } from './fantasy-auth.service';
 
 @Injectable()
 export class FantasyService {
   private readonly leagueId = '017892931';
   private readonly competitionId = '1';
 
-  async getActivity() {
-    const token = process.env.LALIGA_TOKEN;
+  constructor(
+    private readonly fantasyAuthService: FantasyAuthService,
+  ) {}
 
-    if (!token) {
-      throw new Error('Falta LALIGA_TOKEN en .env');
-    }
+  async getActivity() {
+    const token = await this.fantasyAuthService.getAccessToken();
 
     const response = await fetch(
       `https://fantasy-api.llt-services.com/api/v1/competition/${this.competitionId}/leagues/${this.leagueId}/activity/0?x-lang=es`,
