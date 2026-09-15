@@ -23,36 +23,54 @@ the `--base-href` argument provided to `flutter build`.
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="description" content="Gestiona los cláusulazos de tu liga Fantasy.">
-  <meta name="theme-color" content="#0B0F0D">
 
-  <!-- iOS: makes the installed PWA run without Safari's browser chrome
-       and use our own status-bar style instead of the default. -->
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+
+>
+
+<meta
+name="description"
+content="Gestiona los cláusulazos de tu liga Fantasy."
+
+>
+
+  <meta name="theme-color" content="#0B0F0D">
+  <meta name="color-scheme" content="dark">
+
+  <!-- iOS PWA -->
 
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Clausulazos">
+  <meta
+    name="apple-mobile-web-app-status-bar-style"
+    content="black-translucent"
+  >
+  <meta
+    name="apple-mobile-web-app-title"
+    content="Clausulazos"
+  >
+
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <!-- Android/Chrome: same "installed, standalone app" behaviour. -->
+  <!-- Android / Chrome PWA -->
 
   <meta name="mobile-web-app-capable" content="yes">
 
   <!-- Favicon -->
 
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="favicon.png">
 
   <title>Clausulazos</title>
+
   <link rel="manifest" href="manifest.json">
 
-  <!-- Passkey/WebAuthn browser bridge -->
+  <!-- Passkey / WebAuthn browser bridge -->
 
   <script src="webauthn.js"></script>
 
   <style>
-    html,
-    body {
+    html {
       margin: 0;
       padding: 0;
       background: #0B0F0D;
@@ -60,16 +78,29 @@ the `--base-href` argument provided to `flutter build`.
     }
 
     body {
+      margin: 0;
+      padding: 0;
+      background: #0B0F0D;
       min-height: 100vh;
       min-height: 100dvh;
     }
 
     flt-glass-pane {
+      display: block;
+      margin: 0;
+      padding: 0;
+      background: #0B0F0D !important;
+      min-height: 100vh !important;
+      min-height: 100dvh !important;
+    }
+
+    flt-glass-pane > flutter-view {
       background: #0B0F0D !important;
     }
   </style>
 
 </head>
+
 <body>
   <script src="flutter_bootstrap.js" async></script>
 </body>
