@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-
+import { FantasyAuthService } from './fantasy-auth.service';
 @Injectable()
 export class FantasySyncService {
   private readonly leagueId = '017892931';
@@ -12,14 +12,13 @@ export class FantasySyncService {
     '2026-09-13T19:50:00+02:00',
   );
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+  private readonly prisma: PrismaService,
+  private readonly fantasyAuthService: FantasyAuthService,
+) {}
 
   async syncActivity() {
-    const token = process.env.LALIGA_TOKEN;
-
-    if (!token) {
-      throw new Error('Falta LALIGA_TOKEN en .env');
-    }
+    const token = await this.fantasyAuthService.getAccessToken();
 
     const response = await fetch(
       `https://fantasy-api.llt-services.com/api/v1/competition/${this.competitionId}/leagues/${this.leagueId}/activity/0?x-lang=es`,
@@ -201,11 +200,7 @@ export class FantasySyncService {
   }
 
   async getLeagueUsers() {
-    const token = process.env.LALIGA_TOKEN;
-
-    if (!token) {
-      throw new Error('Falta LALIGA_TOKEN en .env');
-    }
+    const token = await this.fantasyAuthService.getAccessToken();
 
     const response = await fetch(
       `https://fantasy-api.llt-services.com/api/v1/competition/${this.competitionId}/leagues/${this.leagueId}/standing?x-lang=es`,

@@ -132,3 +132,13 @@ model WebAuthnChallenge {
   @@index([challenge])
   @@map("webauthn_challenges")
 }
+model FantasyAuthToken {
+  id                    String   @id @default("laliga")
+  refreshToken          String
+  accessToken           String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  updatedAt             DateTime @updatedAt
+
+  @@map("fantasy_auth_tokens")
+}
