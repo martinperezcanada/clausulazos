@@ -59,7 +59,10 @@ class _ClausulazosAppState extends State<ClausulazosApp> {
         AuthRepository(apiClient: _apiClient, tokenStorage: _tokenStorage);
     _userRepository = UserRepository(apiClient: _apiClient);
     _clauseRepository = ClauseRepository(apiClient: _apiClient);
-    _passkeysRepository = PasskeysRepository(apiClient: _apiClient);
+    _passkeysRepository = PasskeysRepository(
+      apiClient: _apiClient,
+      tokenStorage: _tokenStorage,
+    );
     _fantasyRepository = FantasyRepository(apiClient: _apiClient);
 
     _authProvider = AuthProvider(
@@ -83,7 +86,8 @@ class _ClausulazosAppState extends State<ClausulazosApp> {
           create: (_) => ClauseProvider(clauseRepository: _clauseRepository),
         ),
         ChangeNotifierProvider<PasskeysProvider>(
-          create: (_) => PasskeysProvider(passkeysRepository: _passkeysRepository),
+          create: (_) =>
+              PasskeysProvider(passkeysRepository: _passkeysRepository),
         ),
         Provider<FantasyRepository>.value(value: _fantasyRepository),
         Provider<UserRepository>.value(value: _userRepository),

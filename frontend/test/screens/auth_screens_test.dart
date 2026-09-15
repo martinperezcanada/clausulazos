@@ -22,7 +22,11 @@ class _FakeAuthRepository extends AuthRepository {
 }
 
 class _FakePasskeysRepository extends PasskeysRepository {
-  _FakePasskeysRepository() : super(apiClient: ApiClient(tokenStorage: TokenStorage()));
+  _FakePasskeysRepository()
+      : super(
+          apiClient: ApiClient(tokenStorage: TokenStorage()),
+          tokenStorage: TokenStorage(),
+        );
 }
 
 // Widget tests run on the Dart VM (not a real browser), so real
@@ -51,7 +55,8 @@ Widget _wrap(Widget child) {
       theme: AppTheme.dark,
       home: Builder(builder: (context) {
         return Router.withConfig(
-          config: GoRouter(routes: [GoRoute(path: '/', builder: (_, __) => child)]),
+          config:
+              GoRouter(routes: [GoRoute(path: '/', builder: (_, __) => child)]),
         );
       }),
     ),
@@ -60,7 +65,8 @@ Widget _wrap(Widget child) {
 
 void main() {
   group('LoginScreen', () {
-    testWidgets('muestra errores de validación con campos vacíos', (tester) async {
+    testWidgets('muestra errores de validación con campos vacíos',
+        (tester) async {
       await tester.pumpWidget(_wrap(const LoginScreen()));
       await tester.tap(find.text('INICIAR SESIÓN'));
       await tester.pump();
@@ -71,11 +77,14 @@ void main() {
   });
 
   group('RegisterScreen', () {
-    testWidgets('valida nombre, email, contraseña mínima y confirmación', (tester) async {
+    testWidgets('valida nombre, email, contraseña mínima y confirmación',
+        (tester) async {
       await tester.pumpWidget(_wrap(const RegisterScreen()));
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Contraseña'), '123');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Confirmar contraseña'), '456');
+      await tester.enterText(
+          find.widgetWithText(TextFormField, 'Contraseña'), '123');
+      await tester.enterText(
+          find.widgetWithText(TextFormField, 'Confirmar contraseña'), '456');
       await tester.tap(find.text('CREAR CUENTA'));
       await tester.pump();
 
