@@ -42,11 +42,17 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // The Splash screen must stay visible at least this long, so its
+  // progress bar has time to be seen even when the real check is instant.
+  static const _minimumSplashDuration = Duration(seconds: 3);
+
   Future<void> checkSession() async {
+    final stopwatch = Stopwatch()..start();
     sessionCheckStage = SessionCheckStage.checkingSession;
     notifyListeners();
     final hasSession = await _authRepository.hasSession();
     if (!hasSession) {
+      await _waitForMinimumSplashDuration(stopwatch);
       status = AuthStatus.unauthenticated;
       sessionCheckStage = SessionCheckStage.done;
       notifyListeners();
@@ -54,15 +60,25 @@ class AuthProvider extends ChangeNotifier {
     }
     sessionCheckStage = SessionCheckStage.validatingAccess;
     notifyListeners();
+    AuthStatus resolvedStatus;
     try {
       final user = await _authRepository.fetchCurrentUser();
       currentUser = user;
-      status = user != null ? AuthStatus.authenticated : AuthStatus.unauthenticated;
+      resolvedStatus = user != null ? AuthStatus.authenticated : AuthStatus.unauthenticated;
     } catch (_) {
-      status = AuthStatus.unauthenticated;
+      resolvedStatus = AuthStatus.unauthenticated;
     }
+    await _waitForMinimumSplashDuration(stopwatch);
+    status = resolvedStatus;
     sessionCheckStage = SessionCheckStage.done;
     notifyListeners();
+  }
+
+  Future<void> _waitForMinimumSplashDuration(Stopwatch stopwatch) async {
+    final remaining = _minimumSplashDuration - stopwatch.elapsed;
+    if (remaining > Duration.zero) {
+      await Future.delayed(remaining);
+    }
   }
 
   Future<bool> login({required String email, required String password}) {
