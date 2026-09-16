@@ -16,7 +16,64 @@ export class FantasySyncService {
   private readonly prisma: PrismaService,
   private readonly fantasyAuthService: FantasyAuthService,
 ) {}
+private async getPlayerName(
+  token: string,
+  playerMasterId: string,
+): Promise<string | null> {
+  try {
+    const response = await fetch(
+      `https://fantasy-api.llt-services.com/api/v1/competition/${this.competitionId}/player/${playerMasterId}/league/${this.leagueId}?x-lang=es`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'x-lang': 'es',
+          'x-version': '10.0.6',
+          'x-app': 'Fantasy-iOS',
+          'User-Agent':
+            'LaLigaFantasy/10.0.6 (com.lfp.laligafantasy; build:1; iOS 26.6.2) Alamofire/5.10.2',
+        },
+      },
+    );
 
+    if (!response.ok) {
+      console.error(
+        `No se pudo obtener el jugador ${playerMasterId}: ${response.status}`,
+      );
+      return null;
+    }
+
+    const data: any = await response.json();
+
+    console.log(
+      `RESPUESTA JUGADOR ${playerMasterId}:`,
+      JSON.stringify(data),
+    );
+
+    const possibleNames = [
+      data?.playerMaster?.name,
+      data?.player?.name,
+      data?.name,
+      data?.playerMaster?.player?.name,
+      data?.playerMaster?.displayName,
+      data?.displayName,
+    ];
+
+    const name = possibleNames.find(
+      (value) =>
+        typeof value === 'string' && value.trim().length > 0,
+    );
+
+    return name ? name.trim() : null;
+  } catch (error) {
+    console.error(
+      `Error obteniendo el jugador ${playerMasterId}:`,
+      error,
+    );
+
+    return null;
+  }
+}
   async syncActivity() {
     const token = await this.fantasyAuthService.getAccessToken();
 
@@ -40,6 +97,14 @@ export class FantasySyncService {
     }
 
     const activities = await response.json();
+
+const clauseActivity = activities.find(
+  (activity: any) =>
+    activity.activityTypeId === 1 && activity.user2Id,
+);
+
+
+    
 
     let detectedClauseTransfers = 0;
     let skippedBeforeStart = 0;
@@ -84,11 +149,10 @@ export class FantasySyncService {
       // If none of these exist, this stays null and nothing else changes —
       // the clause is still saved exactly as before, just without a name
       // to show in the UI (which then falls back to a generic label).
-      const playerName: string | null =
-        (activity.playerName as string | undefined) ??
-        (activity.player?.name as string | undefined) ??
-        (activity.player?.nickname as string | undefined) ??
-        null;
+     const playerName = await this.getPlayerName(
+  token,
+  playerMasterId,
+);
 
       // Evitar duplicados.
       const existingClause = await this.prisma.clause.findFirst({
@@ -97,21 +161,34 @@ export class FantasySyncService {
         },
       });
 
-      if (existingClause) {
-        alreadyExists++;
+     if (existingClause) {
+  alreadyExists++;
 
-        detected.push({
-          laligaActivityId,
-          fromLaligaUserId,
-          toLaligaUserId,
-          playerMasterId,
-          amount,
-          createdAt: createdAt.toISOString(),
-          status: 'ALREADY_EXISTS',
-        });
+  if (!existingClause.playerName && playerName) {
+    await this.prisma.clause.update({
+      where: {
+        id: existingClause.id,
+      },
+      data: {
+        playerName,
+      },
+    });
+  }
 
-        continue;
-      }
+  detected.push({
+    laligaActivityId,
+    fromLaligaUserId,
+    toLaligaUserId,
+    playerMasterId,
+    amount,
+    createdAt: createdAt.toISOString(),
+    status: existingClause.playerName || playerName
+      ? 'ALREADY_EXISTS'
+      : 'ALREADY_EXISTS_NO_NAME',
+  });
+
+  continue;
+}
 
       // Buscar al usuario que realiza el cláusulazo.
       const fromUser = await this.prisma.user.findUnique({
