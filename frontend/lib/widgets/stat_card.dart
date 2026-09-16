@@ -44,12 +44,11 @@ class StatCard extends StatelessWidget {
             children: [
               Text(
                 title.toUpperCase(),
-                style: const TextStyle(
+                style: AppTextStyles.mono(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.textSecondary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  letterSpacing: 1.1,
-                ),
+                ).copyWith(letterSpacing: 1.4),
               ),
               const SizedBox(height: 8),
               Row(
@@ -57,7 +56,7 @@ class StatCard extends StatelessWidget {
                 children: [
                   Text(
                     '${isExceeded ? '⚠️ ' : ''}${stats.active} / ${stats.limit}',
-                    style: TextStyle(
+                    style: AppTextStyles.mono(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                       color: isExceeded ? AppColors.dangerRed : AppColors.textPrimary,
@@ -87,10 +86,13 @@ class StatCard extends StatelessWidget {
               const SizedBox(height: 10),
               if (isComplete)
                 Row(
-                  children: const [
-                    Icon(Icons.lock, size: 16, color: AppColors.dangerRed),
-                    SizedBox(width: 6),
-                    Text('COMPLETO', style: TextStyle(color: AppColors.dangerRed, fontWeight: FontWeight.bold)),
+                  children: [
+                    const Icon(Icons.lock, size: 16, color: AppColors.dangerRed),
+                    const SizedBox(width: 6),
+                    Text(
+                      'COMPLETO',
+                      style: AppTextStyles.mono(color: AppColors.dangerRed, fontWeight: FontWeight.bold),
+                    ),
                   ],
                 )
               else
@@ -102,7 +104,7 @@ class StatCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   ReleaseTimeFormatter.describe(stats.nextReleaseAt!),
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  style: AppTextStyles.mono(color: AppColors.textSecondary, fontSize: 12),
                 ),
               ],
               if (isExceeded && _overLimitMessage() != null) ...[
@@ -112,7 +114,7 @@ class StatCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: AppColors.dangerRed.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,

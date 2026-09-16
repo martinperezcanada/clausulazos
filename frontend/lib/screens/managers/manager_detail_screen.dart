@@ -100,7 +100,7 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
                           Expanded(
                             child: Text(
                               manager.name,
-                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                              style: AppTextStyles.headline(fontSize: 22),
                             ),
                           ),
                         ],
@@ -122,14 +122,13 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
                         ),
                       ],
                       const SizedBox(height: 24),
-                      const Text(
+                      Text(
                         'HISTORIAL RELEVANTE',
-                        style: TextStyle(
+                        style: AppTextStyles.mono(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                           color: AppColors.textSecondary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          letterSpacing: 1.1,
-                        ),
+                        ).copyWith(letterSpacing: 1.4),
                       ),
                       const SizedBox(height: 10),
                       if (relevantHistory.isEmpty)

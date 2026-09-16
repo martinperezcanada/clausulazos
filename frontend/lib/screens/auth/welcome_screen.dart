@@ -18,14 +18,9 @@ class WelcomeScreen extends StatelessWidget {
               const Spacer(flex: 3),
               const Text('🔥', style: TextStyle(fontSize: 56)),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'CLAUSULAZOS',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 34,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
-                ),
+                style: AppTextStyles.headline(fontSize: 34).copyWith(letterSpacing: 1.5),
               ),
               const SizedBox(height: 10),
               const Text(

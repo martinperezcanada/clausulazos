@@ -139,11 +139,11 @@ class ClauseCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: typeColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     typeLabel,
-                    style: TextStyle(
+                    style: AppTextStyles.mono(
                       color: typeColor,
                       fontWeight: FontWeight.bold,
                       fontSize: 11,
@@ -164,17 +164,13 @@ class ClauseCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     clause.displayPlayerName,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppTextStyles.headline(fontSize: 13),
                   ),
                 ),
                 if (clause.amount != null)
                   Text(
                     _amountFormat.format(clause.amount),
-                    style: const TextStyle(
+                    style: AppTextStyles.mono(
                       color: AppColors.textSecondary,
                       fontSize: 12,
                     ),
@@ -184,7 +180,7 @@ class ClauseCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               ReleaseTimeFormatter.fullDateTime(clause.createdAt),
-              style: const TextStyle(
+              style: AppTextStyles.mono(
                 color: AppColors.textSecondary,
                 fontSize: 12,
               ),
@@ -197,7 +193,7 @@ class ClauseCard extends StatelessWidget {
                     isCancelled
                         ? 'Cancelado'
                         : (isActive ? 'Activo' : 'Expirado'),
-                    style: TextStyle(
+                    style: AppTextStyles.mono(
                       color: isCancelled
                           ? AppColors.textSecondary
                           : (isActive
@@ -218,7 +214,7 @@ class ClauseCard extends StatelessWidget {
                     isActive
                         ? 'Se libera: ${ReleaseTimeFormatter.fullDateTime(clause.expiresAt)}'
                         : 'Liberado: ${ReleaseTimeFormatter.fullDateTime(clause.expiresAt)}',
-                    style: const TextStyle(
+                    style: AppTextStyles.mono(
                       color: AppColors.textSecondary,
                       fontSize: 12,
                     ),

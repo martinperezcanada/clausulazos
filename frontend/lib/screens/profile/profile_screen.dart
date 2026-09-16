@@ -116,7 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(user?.name ?? '', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                        Text(user?.name ?? '', style: AppTextStyles.headline(fontSize: 20)),
                         const SizedBox(height: 2),
                         Text(user?.email ?? '', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                       ],
@@ -161,14 +161,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14)),
+                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(8)),
                   child: Row(
                     children: [
                       const Icon(Icons.access_time_rounded, size: 18, color: AppColors.textSecondary),
                       const SizedBox(width: 10),
                       Text(
                         'Próxima liberación: ${ReleaseTimeFormatter.dayAndTime(nextRelease)}',
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        style: AppTextStyles.mono(color: AppColors.textSecondary, fontSize: 13),
                       ),
                     ],
                   ),
@@ -252,12 +252,11 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
+      style: AppTextStyles.mono(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
         color: AppColors.textSecondary,
-        fontWeight: FontWeight.bold,
-        fontSize: 12,
-        letterSpacing: 1.1,
-      ),
+      ).copyWith(letterSpacing: 1.4),
     );
   }
 }
@@ -272,7 +271,7 @@ class _MiniStat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -280,7 +279,7 @@ class _MiniStat extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
-            style: TextStyle(
+            style: AppTextStyles.mono(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: highlight ? AppColors.dangerRed : AppColors.textPrimary,

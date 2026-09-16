@@ -131,17 +131,17 @@ class _StandingsScreenState extends State<StandingsScreen> {
                                     width: 28,
                                     child: Text(
                                       position,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                                      style: AppTextStyles.mono(fontWeight: FontWeight.bold, color: AppColors.textSecondary),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
-                                    child: Text(manager, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                    child: Text(manager, style: AppTextStyles.headline(fontSize: 16)),
                                   ),
                                   if (points != null)
                                     Text(
                                       '$points pts',
-                                      style: const TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold),
+                                      style: AppTextStyles.mono(color: AppColors.primaryGreen, fontWeight: FontWeight.bold),
                                     ),
                                 ],
                               ),

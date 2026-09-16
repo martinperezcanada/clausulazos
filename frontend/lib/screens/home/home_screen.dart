@@ -80,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   children: [
                     Text(
                       'Hola, $name 👋',
-                      style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                      style: AppTextStyles.headline(fontSize: 26),
                     ),
                     const SizedBox(height: 16),
                     for (final notice in notices.take(3)) NoticeBanner(notice: notice),
@@ -156,12 +156,11 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
+      style: AppTextStyles.mono(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
         color: AppColors.textSecondary,
-        fontWeight: FontWeight.bold,
-        fontSize: 12,
-        letterSpacing: 1.1,
-      ),
+      ).copyWith(letterSpacing: 1.4),
     );
   }
 }
@@ -196,12 +195,16 @@ class _NextReleaseCard extends StatelessWidget {
                 children: [
                   Text(
                     clause.displayPlayerName,
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                    style: AppTextStyles.headline(fontSize: 17),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     ReleaseTimeFormatter.dayAndTime(clause.expiresAt),
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    style: AppTextStyles.mono(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -228,7 +231,7 @@ class _EmptyMiniCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.divider),
       ),
       child: Text(text, style: const TextStyle(color: AppColors.textSecondary)),
@@ -248,7 +251,7 @@ class _HomeSkeleton extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 14),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
           ),
         );
 

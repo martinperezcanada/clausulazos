@@ -101,7 +101,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     },
                     backgroundColor: AppColors.surface,
                     selectedColor: AppColors.primaryGreen,
-                    labelStyle: TextStyle(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    labelStyle: AppTextStyles.mono(
                       color: selected ? Colors.black : AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
                       fontSize: 12,
@@ -181,7 +184,7 @@ class _ActivitySkeleton extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
         ),
       ),
     );

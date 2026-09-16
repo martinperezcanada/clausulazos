@@ -18,7 +18,7 @@ class NoticeBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: notice.isJustReleased ? AppColors.primaryGreen.withOpacity(0.4) : AppColors.divider,
         ),

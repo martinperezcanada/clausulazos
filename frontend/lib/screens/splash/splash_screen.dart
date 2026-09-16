@@ -38,17 +38,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           opacity: _fade,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              Text('🔥', style: TextStyle(fontSize: 48)),
-              SizedBox(height: 12),
+            children: [
+              const Text('🔥', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 12),
               Text(
                 'CLAUSULAZOS',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                ),
+                style: AppTextStyles.headline(fontSize: 28).copyWith(letterSpacing: 2),
               ),
             ],
           ),

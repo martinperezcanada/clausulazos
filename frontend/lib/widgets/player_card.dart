@@ -25,7 +25,7 @@ class PlayerCard extends StatelessWidget {
 
     return Card(
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(8),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -45,7 +45,7 @@ class PlayerCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(player.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        style: AppTextStyles.headline(fontSize: 16)),
                     const SizedBox(height: 4),
                     if (stats != null) ...[
                       if (showReceivedOnly)
@@ -75,7 +75,7 @@ class PlayerCard extends StatelessWidget {
       padding: const EdgeInsets.only(top: 2),
       child: Text(
         '$label $text',
-        style: TextStyle(
+        style: AppTextStyles.mono(
           color: slot.isComplete ? AppColors.dangerRed : AppColors.textSecondary,
           fontSize: 12,
         ),
