@@ -28,10 +28,11 @@ ClauseClassification _classificationFromJson(String? raw) {
     case 'PENDING':
       return ClauseClassification.pending;
     case 'CLAUSE':
-    default:
-      // Older cached data or manually-created clauses default to CLAUSE,
-      // matching the backend's own default.
       return ClauseClassification.clause;
+    case null:
+      return ClauseClassification.pending;
+    default:
+      return ClauseClassification.pending;
   }
 }
 
@@ -74,7 +75,10 @@ class Clause {
   final int? amount;
 
   /// Never leaves the UI showing a raw `null` where a player should be.
-  String get displayPlayerName => (playerName != null && playerName!.trim().isNotEmpty) ? playerName! : 'un jugador';
+  String get displayPlayerName =>
+      (playerName != null && playerName!.trim().isNotEmpty)
+          ? playerName!
+          : 'un jugador';
 
   /// A clause is active only if the backend marked it ACTIVE, it hasn't
   /// reached its expiration instant yet, AND it's classified as a real
@@ -104,11 +108,17 @@ class Clause {
       createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
       expiresAt: DateTime.parse(json['expiresAt'] as String).toLocal(),
       status: _statusFromJson(json['status'] as String? ?? 'ACTIVE'),
-      classification: _classificationFromJson(json['classification'] as String?),
-      fromConfirmation: _confirmationFromJson(json['fromConfirmation'] as String?),
+      classification:
+          _classificationFromJson(json['classification'] as String?),
+      fromConfirmation:
+          _confirmationFromJson(json['fromConfirmation'] as String?),
       toConfirmation: _confirmationFromJson(json['toConfirmation'] as String?),
-      fromUser: json['fromUser'] != null ? AppUser.fromJson(json['fromUser'] as Map<String, dynamic>) : null,
-      toUser: json['toUser'] != null ? AppUser.fromJson(json['toUser'] as Map<String, dynamic>) : null,
+      fromUser: json['fromUser'] != null
+          ? AppUser.fromJson(json['fromUser'] as Map<String, dynamic>)
+          : null,
+      toUser: json['toUser'] != null
+          ? AppUser.fromJson(json['toUser'] as Map<String, dynamic>)
+          : null,
       playerName: json['playerName'] as String?,
       amount: json['amount'] as int?,
     );
