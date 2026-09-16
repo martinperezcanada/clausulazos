@@ -7,6 +7,10 @@ import '../repositories/passkeys_repository.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
+/// Real, observable phases of [AuthProvider.checkSession] — used only so
+/// the Splash screen can show genuine progress instead of a fake timer.
+enum SessionCheckStage { idle, checkingSession, validatingAccess, done }
+
 class AuthProvider extends ChangeNotifier {
   AuthProvider({
     required AuthRepository authRepository,
@@ -21,6 +25,7 @@ class AuthProvider extends ChangeNotifier {
   final WebAuthnClient _webAuthnClient;
 
   AuthStatus status = AuthStatus.unknown;
+  SessionCheckStage sessionCheckStage = SessionCheckStage.idle;
   AppUser? currentUser;
   String? errorMessage;
   bool isLoading = false;
@@ -38,12 +43,17 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> checkSession() async {
+    sessionCheckStage = SessionCheckStage.checkingSession;
+    notifyListeners();
     final hasSession = await _authRepository.hasSession();
     if (!hasSession) {
       status = AuthStatus.unauthenticated;
+      sessionCheckStage = SessionCheckStage.done;
       notifyListeners();
       return;
     }
+    sessionCheckStage = SessionCheckStage.validatingAccess;
+    notifyListeners();
     try {
       final user = await _authRepository.fetchCurrentUser();
       currentUser = user;
@@ -51,6 +61,7 @@ class AuthProvider extends ChangeNotifier {
     } catch (_) {
       status = AuthStatus.unauthenticated;
     }
+    sessionCheckStage = SessionCheckStage.done;
     notifyListeners();
   }
 
