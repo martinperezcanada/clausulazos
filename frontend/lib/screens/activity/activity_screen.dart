@@ -50,23 +50,17 @@ class _ActivityScreenState extends State<ActivityScreen> {
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ClauseProvider>().loadHistory();
     });
   }
 
-  Future<void> _cancel(String clauseId) async {
-    final ok = await context.read<ClauseProvider>().cancelClause(clauseId);
-    if (ok) {
-      await context.read<ClauseProvider>().loadHistory();
-    }
-  }
-
   Future<void> _confirm(String clauseId, String classification) async {
-    // The provider updates that one card in-place, so we don't need to
-    // reload the whole history — but the user's own slot counts may have
-    // changed, so refresh stats used elsewhere (Home/Players) too.
-    final ok = await context.read<ClauseProvider>().confirmClassification(clauseId, classification);
+    final ok = await context
+        .read<ClauseProvider>()
+        .confirmClassification(clauseId, classification);
+
     if (ok && mounted) {
       await context.read<UserProvider>().refreshStatsOnly();
     }
@@ -79,11 +73,16 @@ class _ActivityScreenState extends State<ActivityScreen> {
     final filtered = clauseProvider.history.where(_filter.matches).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Actividad')),
+      appBar: AppBar(
+        title: const Text('Actividad'),
+      ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 10,
+            ),
             child: SizedBox(
               height: 36,
               child: ListView.separated(
@@ -93,10 +92,13 @@ class _ActivityScreenState extends State<ActivityScreen> {
                 itemBuilder: (context, index) {
                   final option = _ActivityFilter.values[index];
                   final selected = option == _filter;
+
                   return ChoiceChip(
                     label: Text(option.label),
                     selected: selected,
-                    onSelected: (_) => setState(() => _filter = option),
+                    onSelected: (_) {
+                      setState(() => _filter = option);
+                    },
                     backgroundColor: AppColors.surface,
                     selectedColor: AppColors.primaryGreen,
                     labelStyle: TextStyle(
@@ -104,7 +106,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
                       fontWeight: FontWeight.w600,
                       fontSize: 12,
                     ),
-                    side: BorderSide(color: selected ? AppColors.primaryGreen : AppColors.divider),
+                    side: BorderSide(
+                      color:
+                          selected ? AppColors.primaryGreen : AppColors.divider,
+                    ),
                   );
                 },
               ),
@@ -124,23 +129,35 @@ class _ActivityScreenState extends State<ActivityScreen> {
                                 clauseProvider.history.isEmpty
                                     ? 'Todavía no hay cláusulazos.'
                                     : 'No hay movimientos en "${_filter.label}".',
-                                style: const TextStyle(color: AppColors.textSecondary),
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ),
                           ],
                         )
                       : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                          padding: const EdgeInsets.fromLTRB(
+                            20,
+                            4,
+                            20,
+                            20,
+                          ),
                           itemCount: filtered.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
                           itemBuilder: (context, index) {
                             final clause = filtered[index];
+
                             return ClauseCard(
                               clause: clause,
                               currentUserId: myId,
-                              onCancel: () => _cancel(clause.id),
-                              onConfirm: (classification) => _confirm(clause.id, classification),
-                              isConfirming: clauseProvider.confirmingIds.contains(clause.id),
+                              onConfirm: (classification) => _confirm(
+                                clause.id,
+                                classification,
+                              ),
+                              isConfirming: clauseProvider.confirmingIds
+                                  .contains(clause.id),
                             );
                           },
                         ),

@@ -45,10 +45,7 @@ private async getPlayerName(
 
     const data: any = await response.json();
 
-    console.log(
-      `RESPUESTA JUGADOR ${playerMasterId}:`,
-      JSON.stringify(data),
-    );
+    
 
     const possibleNames = [
       data?.playerMaster?.name,
