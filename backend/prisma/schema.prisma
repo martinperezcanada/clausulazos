@@ -63,7 +63,7 @@ model Clause {
   // CLAUSE so existing/manually-created clauses keep counting exactly as
   // before; the LALIGA sync explicitly overrides this to PENDING for
   // newly-detected movements.
-  classification   ClauseClassification  
+  classification   ClauseClassification?  
   // Each participant's own vote on what the movement was. Only becomes
   // AGREED (excluded from stats) once BOTH sides independently confirm
   // AGREED — neither side can unilaterally remove a clause from the
