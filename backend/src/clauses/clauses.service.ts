@@ -85,7 +85,6 @@ export class ClausesService {
           createdAt,
           expiresAt,
           status: ClauseStatus.ACTIVE,
-          classification: ClauseClassification.CLAUSE,
         },
         include: { fromUser: true, toUser: true },
       });
