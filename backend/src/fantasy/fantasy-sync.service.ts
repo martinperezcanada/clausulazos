@@ -164,14 +164,23 @@ const clauseActivity = activities.find(
      if (existingClause) {
   alreadyExists++;
 
+  const updateData: any = {};
+
   if (!existingClause.playerName && playerName) {
+    updateData.playerName = playerName;
+  }
+
+  if (
+    existingClause.amount == null &&
+    Number.isFinite(amount)
+  ) {
+    updateData.amount = amount;
+  }
+
+  if (Object.keys(updateData).length > 0) {
     await this.prisma.clause.update({
-      where: {
-        id: existingClause.id,
-      },
-      data: {
-        playerName,
-      },
+      where: { id: existingClause.id },
+      data: updateData,
     });
   }
 
