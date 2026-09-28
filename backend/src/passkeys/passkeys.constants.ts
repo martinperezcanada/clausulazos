@@ -1,8 +1,6 @@
-// Centralized WebAuthn/Passkey configuration. Everything here is driven by
-// env vars with sane production defaults, so nothing needs to be
-// hardcoded per-environment and dev/prod can both work out of the box.
+// WebAuthn configuration, driven by env vars with production defaults.
 
-// A challenge must be used within this window or it's rejected as expired.
+// A challenge must be used within this window or it expires.
 export const WEBAUTHN_CHALLENGE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 export function getRpId(): string {
@@ -14,10 +12,8 @@ export function getRpName(): string {
 }
 
 /**
- * Allowed origins for WebAuthn ceremonies. Must match the RP ID's domain
- * (or a subdomain) exactly, protocol included. Configure via
- * WEBAUTHN_ORIGINS (comma-separated) to add/replace entries — e.g. for a
- * custom domain — without touching code.
+ * Allowed origins for WebAuthn ceremonies. They must match the RP ID's domain (or a subdomain),
+ * protocol included. Extend or replace them with WEBAUTHN_ORIGINS (comma-separated).
  */
 export function getExpectedOrigins(): string[] {
   const configured = process.env.WEBAUTHN_ORIGINS;

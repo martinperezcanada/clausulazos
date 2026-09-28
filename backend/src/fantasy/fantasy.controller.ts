@@ -19,13 +19,9 @@ export class FantasyController {
     private readonly fantasySyncService: FantasySyncService,
   ) {}
 
-  // NOTE: this endpoint is called by the GitHub Actions cron
-  // (.github/workflows/fantasy-sync.yml) via a plain `curl`, with no auth
-  // header — it MUST stay reachable without a JWT or the automatic sync
-  // breaks. If FANTASY_SYNC_SECRET is set in the environment, an optional
-  // `x-sync-secret` header check is enforced instead; if it's unset (the
-  // default, and the current production behaviour), no check is done at
-  // all, so nothing changes unless you explicitly opt in.
+  // Called by the GitHub Actions cron (.github/workflows/fantasy-sync.yml) with a plain `curl` and no
+  // auth header, so it must stay reachable without a JWT. If FANTASY_SYNC_SECRET is set, an
+  // `x-sync-secret` header check is enforced; when it is unset (the default) there is no check.
   @Get('sync')
   async sync(@Headers('x-sync-secret') syncSecret?: string) {
     const expectedSecret = process.env.FANTASY_SYNC_SECRET;
@@ -34,7 +30,20 @@ export class FantasyController {
     }
 
     try {
-      return await this.fantasySyncService.syncActivity();
+      return await this.fantasySyncService.runScheduledSync();
+    } catch (error) {
+      throw new InternalServerErrorException(
+        error instanceof Error ? error.message : 'Error desconocido',
+      );
+    }
+  }
+
+  // Feeds the dashboard's "Sincronizado hace X min" from the persisted timestamp.
+  @UseGuards(JwtAuthGuard)
+  @Get('sync/status')
+  async syncStatus() {
+    try {
+      return await this.fantasySyncService.getStatus();
     } catch (error) {
       throw new InternalServerErrorException(
         error instanceof Error ? error.message : 'Error desconocido',
@@ -54,8 +63,7 @@ export class FantasyController {
     }
   }
 
-  // Also exposed as /fantasy/standings (clearer name for the league
-  // standings screen) — both point at the same LALIGA "standing" data.
+  // Also exposed as /fantasy/standings; both routes return the same LALIGA standing data.
   @UseGuards(JwtAuthGuard)
   @Get('users')
   async users() {
@@ -73,6 +81,33 @@ export class FantasyController {
   async standings() {
     try {
       return await this.fantasySyncService.getLeagueUsers();
+    } catch (error) {
+      throw new InternalServerErrorException(
+        error instanceof Error ? error.message : 'Error desconocido',
+      );
+    }
+  }
+
+  // Feeds the "Tabla general" tab: accumulated debt per manager (money rule and tie handling in
+  // `FantasySyncService.getLeagueDebts()`).
+  @UseGuards(JwtAuthGuard)
+  @Get('debts')
+  async debts() {
+    try {
+      return await this.fantasySyncService.getLeagueDebts();
+    } catch (error) {
+      throw new InternalServerErrorException(
+        error instanceof Error ? error.message : 'Error desconocido',
+      );
+    }
+  }
+
+  // Feeds the chart under "Tabla general" (see `FantasySyncService.getLeagueDebtHistory()`).
+  @UseGuards(JwtAuthGuard)
+  @Get('debts/history')
+  async debtsHistory() {
+    try {
+      return await this.fantasySyncService.getLeagueDebtHistory();
     } catch (error) {
       throw new InternalServerErrorException(
         error instanceof Error ? error.message : 'Error desconocido',

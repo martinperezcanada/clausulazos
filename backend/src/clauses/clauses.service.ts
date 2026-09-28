@@ -4,7 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ClauseClassification, ClauseStatus, Prisma } from '@prisma/client';
+import {
+  ClauseClassification,
+  ClauseStatus,
+  NotificationType,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   MAX_ACTIVE_CLAUSES,
@@ -29,16 +34,9 @@ export class ClausesService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Creates a new "clausulazo" from `fromUserId` to `toUserId`.
-   *
-   * Concurrency safety: within a single DB transaction we take a
-   * Postgres advisory lock on BOTH participating user ids (always in a
-   * fixed order to avoid deadlocks) before counting active clauses and
-   * inserting. Any other transaction trying to touch either user's
-   * slots blocks until this one commits or rolls back, which makes the
-   * "count < 2 then insert" check atomic and race-free — two
-   * simultaneous requests against the same user can never both succeed
-   * past the limit.
+   * Creates a clausulazo from `fromUserId` to `toUserId`. Runs in a transaction that takes a Postgres
+   * advisory lock on both users (in a fixed order, to avoid deadlocks) before counting active clauses,
+   * so two concurrent requests can't both get past the limit.
    */
   async create(fromUserId: string, toUserId: string) {
     if (fromUserId === toUserId) {
@@ -85,6 +83,7 @@ export class ClausesService {
           createdAt,
           expiresAt,
           status: ClauseStatus.ACTIVE,
+          classification: ClauseClassification.CLAUSE,
         },
         include: { fromUser: true, toUser: true },
       });
@@ -116,12 +115,31 @@ export class ClausesService {
   }
 
   /**
-   * Records `requesterId`'s own vote on what a PENDING (or still-disputed)
-   * movement was. The requester must be one of the two participants — the
-   * backend never trusts Flutter for this. The final `classification` is
-   * always recomputed from BOTH sides' confirmations via
-   * `resolveClassification`, so a single participant can never unilaterally
-   * push a movement into AGREED.
+   * Admin-only removal of any movement (`cancel()` is limited to the creator). Authorization is done at
+   * the route level (JwtAuthGuard + AdminGuard). Uses the same CANCELLED transition as `cancel()`, so
+   * history behaves the same.
+   */
+  async adminCancel(clauseId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const clause = await tx.clause.findUnique({ where: { id: clauseId } });
+      if (!clause) {
+        throw new NotFoundException('Movimiento no encontrado');
+      }
+      if (clause.status === ClauseStatus.CANCELLED) {
+        return clause;
+      }
+
+      return tx.clause.update({
+        where: { id: clauseId },
+        data: { status: ClauseStatus.CANCELLED, cancelledAt: new Date() },
+      });
+    });
+  }
+
+  /**
+   * Records `requesterId`'s vote on a PENDING (or disputed) movement. The requester must be a
+   * participant. The final classification is recomputed from both votes with `resolveClassification`,
+   * so one side can't force AGREED.
    */
   async confirmClassification(
     clauseId: string,
@@ -163,8 +181,80 @@ export class ClausesService {
     });
   }
 
+  /**
+   * "Avisar a..." from the Activity screen: `requesterId` reminds the participant who hasn't voted on a
+   * PENDING movement. Persists a `Notification` row and returns what the caller needs to send the FCM
+   * push (recipient and requester names). Sending is left to the controller so this service can be
+   * built with only `PrismaService`. A reminder for the same clause and recipient created in the last
+   * 10 minutes is reused.
+   */
+  async remindParticipant(clauseId: string, requesterId: string) {
+    const clause = await this.prisma.clause.findUnique({
+      where: { id: clauseId },
+      include: { fromUser: true, toUser: true },
+    });
+    if (!clause) {
+      throw new NotFoundException('Movimiento no encontrado');
+    }
+
+    const isFromUser = clause.fromUserId === requesterId;
+    const isToUser = clause.toUserId === requesterId;
+    if (!isFromUser && !isToUser) {
+      throw new ForbiddenException(
+        'Solo los participantes de este movimiento pueden avisar',
+      );
+    }
+
+    if (clause.classification !== ClauseClassification.PENDING) {
+      throw new BadRequestException(
+        'Este movimiento ya no está pendiente de confirmación',
+      );
+    }
+
+    const recipientId = isFromUser ? clause.toUserId : clause.fromUserId;
+    const recipientAlreadyConfirmed = isFromUser
+      ? clause.toConfirmation !== null
+      : clause.fromConfirmation !== null;
+    if (recipientAlreadyConfirmed) {
+      throw new BadRequestException(
+        'Ese participante ya ha confirmado este movimiento',
+      );
+    }
+
+    const requesterName = isFromUser ? clause.fromUser.name : clause.toUser.name;
+    const recipientName = isFromUser ? clause.toUser.name : clause.fromUser.name;
+
+    const recent = await this.prisma.notification.findFirst({
+      where: {
+        userId: recipientId,
+        clauseId,
+        type: NotificationType.CLAUSE_CONFIRMATION_REMINDER,
+        createdAt: { gt: new Date(Date.now() - 10 * 60 * 1000) },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const playerLabel = clause.playerName ?? 'un jugador';
+
+    const notification =
+      recent ??
+      (await this.prisma.notification.create({
+        data: {
+          userId: recipientId,
+          clauseId,
+          type: NotificationType.CLAUSE_CONFIRMATION_REMINDER,
+          message: `${requesterName} te ha avisado de que tienes pendiente confirmar el movimiento de ${playerLabel}.`,
+        },
+      }));
+
+    return { notification, recipientId, recipientName, requesterName };
+  }
+
+  // CANCELLED movements are left out of both listings so they disappear from Activity. The row is kept
+  // for audit and is still reachable by id.
   async findAll() {
     return this.prisma.clause.findMany({
+      where: { status: { not: ClauseStatus.CANCELLED } },
       orderBy: { createdAt: 'desc' },
       include: { fromUser: true, toUser: true },
     });
@@ -172,22 +262,19 @@ export class ClausesService {
 
   async findForUser(userId: string) {
     return this.prisma.clause.findMany({
-      where: { OR: [{ fromUserId: userId }, { toUserId: userId }] },
+      where: {
+        OR: [{ fromUserId: userId }, { toUserId: userId }],
+        status: { not: ClauseStatus.CANCELLED },
+      },
       orderBy: { createdAt: 'desc' },
       include: { fromUser: true, toUser: true },
     });
   }
 
   /**
-   * A clause counts as "active" only if:
-   *   - status is ACTIVE (i.e. not manually cancelled),
-   *   - expiresAt is still in the future, AND
-   *   - classification is CLAUSE (PENDING movements awaiting confirmation
-   *     and AGREED pacted transfers never occupy a slot, however recent).
-   * Expired/cancelled/agreed clauses are kept in the table for history but
-   * never count against the 2-slot limit. `active` is intentionally NOT
-   * clamped to the limit, so callers can detect and warn about an excess
-   * (e.g. a third LALIGA-detected clause) instead of silently hiding it.
+   * A clause is active if its status is ACTIVE, `expiresAt` is in the future and its classification is
+   * CLAUSE (PENDING and AGREED movements never occupy a slot). `active` is deliberately not clamped to
+   * the limit, so callers can detect an excess (e.g. a third LALIGA-detected clause).
    */
   async getStatsForUser(userId: string): Promise<UserStats> {
     const now = new Date();
@@ -244,9 +331,7 @@ export class ClausesService {
     });
   }
 
-  // Locks both users' "slot rows" in a fixed, deterministic order (by id)
-  // so two concurrent transactions involving the same pair of users can
-  // never deadlock against each other.
+  // Lock both users in id order so concurrent transactions on the same pair can't deadlock.
   private async lockUsersForUpdate(
     tx: Prisma.TransactionClient,
     userIdA: string,

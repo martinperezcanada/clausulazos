@@ -27,4 +27,20 @@ class UserRepository {
     final response = await _apiClient.dio.get('/users/$id');
     return AppUser.fromJson(response.data as Map<String, dynamic>);
   }
+
+  /// Admin-only: accounts awaiting approval (`AdminGuard` on the backend route).
+  Future<List<AppUser>> fetchPendingUsers() async {
+    final response = await _apiClient.dio.get('/users/pending');
+    return (response.data as List)
+        .map((e) => AppUser.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> approveUser(String id) async {
+    await _apiClient.dio.patch('/users/$id/approve');
+  }
+
+  Future<void> rejectUser(String id) async {
+    await _apiClient.dio.patch('/users/$id/reject');
+  }
 }

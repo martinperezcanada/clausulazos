@@ -4,10 +4,8 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  // CORS: only the configured frontend origins may call the API with
-  // credentials. Defaults cover prod (Vercel) + common local dev ports so
-  // nothing breaks out of the box; override with CORS_ORIGINS (comma
-  // separated) in .env for any other origin.
+  // CORS: only the configured frontend origins can call the API with credentials. Defaults cover
+  // production (Vercel) and the usual local ports; override with CORS_ORIGINS (comma separated).
   const defaultOrigins = [
     'https://clausulazos.vercel.app',
     'http://localhost:3000',
@@ -29,7 +27,7 @@ async function bootstrap() {
 
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // strip properties not defined in the DTO (e.g. fromUserId injected by a malicious client)
+      whitelist: true, // strip properties that aren't in the DTO (e.g. an injected fromUserId)
       forbidNonWhitelisted: true,
       transform: true,
     }),

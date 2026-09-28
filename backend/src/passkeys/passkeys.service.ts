@@ -44,14 +44,13 @@ export class PasskeysService {
       rpID: getRpId(),
       userName: user.email,
       userDisplayName: user.name,
-      attestationType: 'none', // we don't need attestation chains — just a usable key
+      attestationType: 'none', // no attestation needed
       excludeCredentials: user.passkeys.map((p) => ({
         id: p.credentialId,
         transports: (p.transports as any) ?? undefined,
       })),
       authenticatorSelection: {
-        // 'required' is what makes the credential discoverable, which is
-        // what lets Face ID show a picker with no email typed first.
+        // 'required' makes the credential discoverable, so Face ID can list passkeys without an email.
         residentKey: 'required',
         userVerification: 'preferred',
       },
@@ -115,9 +114,7 @@ export class PasskeysService {
         where: { email: email.toLowerCase() },
         include: { passkeys: true },
       });
-      // Deliberately don't reveal whether the email exists: with no
-      // passkeys registered we just fall back to a discoverable/usernameless
-      // prompt, same as if no email had been given at all.
+      // Don't reveal whether the email exists: with no passkeys we fall back to the usernameless flow.
       if (user && user.passkeys.length > 0) {
         allowCredentials = user.passkeys.map((p) => ({
           id: p.credentialId,
@@ -169,8 +166,7 @@ export class PasskeysService {
       throw new UnauthorizedException('No se ha podido verificar la passkey');
     }
 
-    // Replay-attack guard: the authenticator's own counter must not go
-    // backwards or stay stuck on a previously-seen value.
+    // Replay guard: the authenticator's counter must move forward.
     if (
       verification.authenticationInfo.newCounter !== 0 &&
       verification.authenticationInfo.newCounter <= credentialRecord.counter
@@ -231,13 +227,8 @@ export class PasskeysService {
   }
 
   /**
-   * Atomically marks a challenge as used, returning true only the first
-   * time it's called for that exact challenge (and false for anything
-   * expired, unknown, already-used, or for the wrong user/type). This is
-   * what makes challenges single-use and prevents replay attacks against
-   * the challenge itself — @simplewebauthn calls this as part of
-   * verifying the signed response, so a stolen/replayed response can never
-   * be verified twice.
+   * Marks a challenge as used, atomically. Returns true only the first time for that challenge (false
+   * if it is expired, unknown, already used or for another user/type), which makes challenges single-use.
    */
   private async consumeChallenge(
     challenge: string,
@@ -266,9 +257,7 @@ export class PasskeysService {
     createdAt: Date;
     lastUsedAt: Date | null;
   }) {
-    // Never return publicKey/counter/credentialId — nothing here helps an
-    // attacker, but there's no reason to expose internal verification
-    // material to the client either.
+    // Don't expose publicKey, counter or credentialId to the client.
     return {
       id: credential.id,
       name: credential.name,

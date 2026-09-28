@@ -11,18 +11,11 @@ export function computeExpiresAt(createdAt: Date): Date {
 export type Confirmation = 'PENDING' | 'CLAUSE' | 'AGREED' | null | undefined;
 
 /**
- * Resolves the final classification of a movement from each participant's
- * individual confirmation. This is the single source of truth for the
- * "no one can unilaterally remove a clause from the stats" rule:
- *
- * - Only becomes AGREED when BOTH sides independently confirmed AGREED.
- * - A single CLAUSE vote from either side is enough to lock it in as a
- *   counting clause — that's the safe direction, since it can't be used
- *   to escape the limits.
- * - Any discrepancy (one CLAUSE, one AGREED) resolves to CLAUSE, never to
- *   AGREED, per spec.
- * - With no votes yet (or only an AGREED vote from one side and nothing
- *   from the other), the movement stays PENDING.
+ * Final classification of a movement from each participant's confirmation.
+ * - AGREED only when both sides confirmed AGREED.
+ * - A CLAUSE vote from either side, or a CLAUSE/AGREED mismatch, resolves to CLAUSE, so nobody can
+ *   leave the limits unilaterally.
+ * - With no votes, or a single AGREED vote, it stays PENDING.
  */
 export function resolveClassification(
   fromConfirmation: Confirmation,

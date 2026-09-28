@@ -9,8 +9,11 @@ class NoticeBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = notice.isJustReleased ? AppColors.primaryGreen : AppColors.textPrimary;
-    final icon = notice.isJustReleased ? Icons.lock_open_rounded : Icons.notifications_active_rounded;
+    final color =
+        notice.isJustReleased ? AppColors.primaryGreen : AppColors.textPrimary;
+    final icon = notice.isJustReleased
+        ? Icons.lock_open_rounded
+        : Icons.notifications_active_rounded;
 
     return Container(
       width: double.infinity,
@@ -20,7 +23,9 @@ class NoticeBanner extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: notice.isJustReleased ? AppColors.primaryGreen.withOpacity(0.4) : AppColors.divider,
+          color: notice.isJustReleased
+              ? AppColors.primaryGreen.withOpacity(0.4)
+              : AppColors.divider,
         ),
       ),
       child: Row(
@@ -30,7 +35,8 @@ class NoticeBanner extends StatelessWidget {
           Expanded(
             child: Text(
               notice.message,
-              style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  color: color, fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ),
         ],

@@ -1,15 +1,30 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import '../core/config/app_config.dart';
 import '../core/network/api_client.dart';
 import '../core/webauthn/webauthn_client.dart';
 import '../models/user.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/passkeys_repository.dart';
 
-enum AuthStatus { unknown, authenticated, unauthenticated }
+// `backendUnreachable`: a JWT is stored but the last validation attempts failed for connectivity
+// reasons (no response at all, never a 401). Different from `unauthenticated`: the token is kept and
+// the app keeps retrying instead of logging out.
+enum AuthStatus { unknown, authenticated, unauthenticated, backendUnreachable }
 
-/// Real, observable phases of [AuthProvider.checkSession] — used only so
-/// the Splash screen can show genuine progress instead of a fake timer.
-enum SessionCheckStage { idle, checkingSession, validatingAccess, done }
+/// Phases of [AuthProvider.checkSession].
+enum SessionCheckStage {
+  idle,
+  checkingSession,
+  validatingAccess,
+  reconnecting,
+  done
+}
+
+/// Outcome of one attempt to validate the stored JWT; internal to `checkSession()` and its retry loop.
+enum _ValidateOutcome { success, invalidSession, unreachable }
 
 class AuthProvider extends ChangeNotifier {
   AuthProvider({
@@ -30,23 +45,27 @@ class AuthProvider extends ChangeNotifier {
   String? errorMessage;
   bool isLoading = false;
 
-  /// Whether this browser can even attempt Face ID/Passkeys — checked
-  /// once and cached, so the login screen can hide the button entirely
-  /// instead of showing something that will just fail.
+  Timer? _reconnectTimer;
+
+  /// Whether this browser can attempt Face ID/passkeys. Checked once and cached, so the login screen can
+  /// hide the button.
   bool get passkeysSupported => _webAuthnClient.isSupported;
 
-  /// Called by ApiClient when the backend responds 401 to any request.
+  /// Called by ApiClient on a 401, the one signal that the stored JWT is invalid (the interceptor has
+  /// already cleared it).
   void forceLogout() {
+    _reconnectTimer?.cancel();
     currentUser = null;
     status = AuthStatus.unauthenticated;
     notifyListeners();
   }
 
-  // The Splash screen must stay visible at least this long, so its
-  // progress bar has time to be seen even when the real check is instant.
+  // The splash stays visible at least this long, so it doesn't just flash when the check is instant.
   static const _minimumSplashDuration = Duration(seconds: 3);
 
   Future<void> checkSession() async {
+    _reconnectTimer?.cancel();
+
     final stopwatch = Stopwatch()..start();
     sessionCheckStage = SessionCheckStage.checkingSession;
     notifyListeners();
@@ -58,20 +77,72 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
+
     sessionCheckStage = SessionCheckStage.validatingAccess;
     notifyListeners();
-    AuthStatus resolvedStatus;
+
+    var outcome = await _attemptValidateSession();
+    var attempt = 1;
+    while (outcome == _ValidateOutcome.unreachable &&
+        attempt < AppConfig.sessionCheckMaxQuickAttempts) {
+      attempt++;
+      sessionCheckStage = SessionCheckStage.reconnecting;
+      notifyListeners();
+      await Future.delayed(AppConfig.sessionCheckQuickRetryDelay);
+      outcome = await _attemptValidateSession();
+    }
+
+    await _waitForMinimumSplashDuration(stopwatch);
+    _applyValidateOutcome(outcome, scheduleBackgroundRetry: true);
+  }
+
+  /// One attempt to validate the stored JWT. Tells a real 401 (already cleared from storage by
+  /// ApiClient's interceptor) apart from not reaching the backend at all (timeout, connection refused,
+  /// DNS, a sleeping Render instance), which must never count as a logout.
+  Future<_ValidateOutcome> _attemptValidateSession() async {
     try {
       final user = await _authRepository.fetchCurrentUser();
+      if (user == null) return _ValidateOutcome.invalidSession;
       currentUser = user;
-      resolvedStatus = user != null ? AuthStatus.authenticated : AuthStatus.unauthenticated;
+      return _ValidateOutcome.success;
+    } on DioException catch (e) {
+      return e.response?.statusCode == 401
+          ? _ValidateOutcome.invalidSession
+          : _ValidateOutcome.unreachable;
     } catch (_) {
-      resolvedStatus = AuthStatus.unauthenticated;
+      return _ValidateOutcome.unreachable;
     }
-    await _waitForMinimumSplashDuration(stopwatch);
-    status = resolvedStatus;
-    sessionCheckStage = SessionCheckStage.done;
+  }
+
+  void _applyValidateOutcome(_ValidateOutcome outcome,
+      {required bool scheduleBackgroundRetry}) {
+    switch (outcome) {
+      case _ValidateOutcome.success:
+        status = AuthStatus.authenticated;
+        sessionCheckStage = SessionCheckStage.done;
+      case _ValidateOutcome.invalidSession:
+        currentUser = null;
+        status = AuthStatus.unauthenticated;
+        sessionCheckStage = SessionCheckStage.done;
+      case _ValidateOutcome.unreachable:
+        // Keep the JWT: this is a connectivity problem, not an invalid session. Stay on Splash (see
+        // AppRouter) and keep retrying in the background.
+        status = AuthStatus.backendUnreachable;
+        sessionCheckStage = SessionCheckStage.reconnecting;
+        if (scheduleBackgroundRetry) _scheduleBackgroundRetry();
+    }
     notifyListeners();
+  }
+
+  void _scheduleBackgroundRetry() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer =
+        Timer(AppConfig.sessionCheckBackgroundRetryInterval, () async {
+      // Superseded by a login, logout or new checkSession() in the meantime.
+      if (status != AuthStatus.backendUnreachable) return;
+      final outcome = await _attemptValidateSession();
+      _applyValidateOutcome(outcome, scheduleBackgroundRetry: true);
+    });
   }
 
   Future<void> _waitForMinimumSplashDuration(Stopwatch stopwatch) async {
@@ -82,7 +153,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> login({required String email, required String password}) {
-    return _runAuthAction(() => _authRepository.login(email: email, password: password));
+    return _runAuthAction(
+        () => _authRepository.login(email: email, password: password));
   }
 
   Future<bool> register({
@@ -101,13 +173,12 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
-  /// Full passkey login ceremony: fetch options from the backend, run
-  /// `navigator.credentials.get()` in the browser, then send the signed
-  /// assertion back to be verified. On success this produces exactly the
-  /// same session (JWT + user) as email+password login.
+  /// Passkey login: fetch options from the backend, run `navigator.credentials.get()` in the browser and
+  /// send the signed assertion back. Produces the same session as email + password login.
   Future<bool> loginWithPasskey({String? email}) {
     return _runAuthAction(() async {
-      final options = await _passkeysRepository.getAuthenticationOptions(email: email);
+      final options =
+          await _passkeysRepository.getAuthenticationOptions(email: email);
       final credentialResponse = await _webAuthnClient.authenticate(options);
       return _passkeysRepository.verifyAuthentication(credentialResponse);
     });
@@ -134,12 +205,14 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> changePassword({required String currentPassword, required String newPassword}) async {
+  Future<bool> changePassword(
+      {required String currentPassword, required String newPassword}) async {
     isLoading = true;
     errorMessage = null;
     notifyListeners();
     try {
-      await _authRepository.changePassword(currentPassword: currentPassword, newPassword: newPassword);
+      await _authRepository.changePassword(
+          currentPassword: currentPassword, newPassword: newPassword);
       return true;
     } catch (e) {
       errorMessage = ApiClient.messageFromError(e);
@@ -151,9 +224,16 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    _reconnectTimer?.cancel();
     await _authRepository.logout();
     currentUser = null;
     status = AuthStatus.unauthenticated;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _reconnectTimer?.cancel();
+    super.dispose();
   }
 }

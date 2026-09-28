@@ -14,11 +14,9 @@ ClauseStatus _statusFromJson(String raw) {
   }
 }
 
-// PENDING: detected automatically from LALIGA, awaiting confirmation from
-//          both participants — never counts toward the 2-slot limits.
-// clause:  confirmed as a real clausulazo — counts toward the limits.
-// agreed:  confirmed by BOTH participants as a pacted transfer — never
-//          counts, no matter how recent.
+// PENDING: detected from LALIGA, awaiting both participants; never counts toward the limits.
+// clause:  confirmed as a real clausulazo; counts toward the limits.
+// agreed:  confirmed by both participants as an agreed transfer; never counts.
 enum ClauseClassification { pending, clause, agreed }
 
 ClauseClassification _classificationFromJson(String? raw) {
@@ -69,30 +67,25 @@ class Clause {
   final ClauseClassification? toConfirmation;
   final AppUser? fromUser;
   final AppUser? toUser;
-  // Best-effort — LALIGA's sync payload doesn't always resolve a name for
-  // every movement type, so this can be null even for a real clause.
+  // Best effort: LALIGA's sync payload doesn't always resolve a name, so this can be null.
   final String? playerName;
   final int? amount;
 
-  /// Never leaves the UI showing a raw `null` where a player should be.
+  /// Falls back to "un jugador" when the name is unknown.
   String get displayPlayerName =>
       (playerName != null && playerName!.trim().isNotEmpty)
           ? playerName!
           : 'un jugador';
 
-  /// A clause is active only if the backend marked it ACTIVE, it hasn't
-  /// reached its expiration instant yet, AND it's classified as a real
-  /// CLAUSE (PENDING/AGREED movements never occupy a slot). Flutter
-  /// mirrors this for display purposes, but the backend remains the
-  /// source of truth.
+  /// Active if the backend marked it ACTIVE, it hasn't expired and it's classified as CLAUSE (PENDING and
+  /// AGREED never occupy a slot). Mirrors the backend for display; the backend is the source of truth.
   bool isActiveAt(DateTime now) =>
       status == ClauseStatus.active &&
       classification == ClauseClassification.clause &&
       expiresAt.isAfter(now);
 
-  /// Whether `userId` still needs to confirm this movement (i.e. they're
-  /// a participant, the movement is still pending, and they haven't voted
-  /// yet).
+  /// Whether `userId` still has to confirm this movement: they take part in it, it's pending and they
+  /// haven't voted yet.
   bool needsConfirmationFrom(String userId) {
     if (classification != ClauseClassification.pending) return false;
     if (userId == fromUserId) return fromConfirmation == null;

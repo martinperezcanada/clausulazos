@@ -29,11 +29,8 @@ class _FakePasskeysRepository extends PasskeysRepository {
         );
 }
 
-// Widget tests run on the Dart VM (not a real browser), so real
-// dart:js_interop calls to navigator.credentials aren't available here —
-// force "unsupported" so LoginScreen renders its normal email/password
-// form instead of the Face ID option, exactly like a real unsupported
-// browser would.
+// Widget tests run on the Dart VM, where `dart:js_interop` calls to navigator.credentials aren't
+// available; force "unsupported" so LoginScreen shows the email/password form.
 class _FakeUnsupportedWebAuthnClient extends WebAuthnClient {
   const _FakeUnsupportedWebAuthnClient();
   @override

@@ -1,7 +1,7 @@
 import 'package:intl/intl.dart';
 
-/// Formats a slot's release instant the way the spec describes:
-/// "Se libera en 6 días", "Se libera mañana", "Se libera hoy a las 18:42"...
+/// Formats a slot's release instant: "Se libera en 6 días", "Se libera mañana",
+/// "Se libera hoy a las 18:42"...
 class ReleaseTimeFormatter {
   ReleaseTimeFormatter._();
 
@@ -26,7 +26,8 @@ class ReleaseTimeFormatter {
     return 'Se libera en $dayDiff días';
   }
 
-  static String fullDateTime(DateTime dateTime) => _dateTimeFormat.format(dateTime);
+  static String fullDateTime(DateTime dateTime) =>
+      _dateTimeFormat.format(dateTime);
 
   /// Compact "Hoy · 18:32" / "Mañana · 18:32" / "d de MMMM · 18:32" label,
   /// for tight dashboard cards (see HomeScreen "Próxima liberación").

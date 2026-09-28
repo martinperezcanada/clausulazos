@@ -62,7 +62,7 @@ class PasskeysRepository {
     final data = response.data as Map<String, dynamic>;
     final token = data['accessToken'] as String;
 
-    // Important: save the JWT exactly like email/password login.
+    // Store the JWT like an email/password login.
     await _tokenStorage.saveToken(token);
 
     final user = AppUser.fromJson(data['user'] as Map<String, dynamic>);

@@ -13,10 +13,8 @@ external JSPromise<JSString> _register(JSString optionsJson);
 @JS('clausulazosWebAuthn.authenticate')
 external JSPromise<JSString> _authenticate(JSString optionsJson);
 
-/// Thrown when a Passkey/WebAuthn operation can't be completed — either
-/// because the browser doesn't support it, the user cancelled the
-/// prompt, or the ceremony otherwise failed. Always carries a message
-/// that's already safe to show directly in the UI.
+/// Thrown when a passkey operation can't be completed: unsupported browser, cancelled dialog or a failed
+/// ceremony. The message is safe to show in the UI.
 class WebAuthnUnavailableException implements Exception {
   WebAuthnUnavailableException(this.message);
   final String message;
@@ -25,22 +23,14 @@ class WebAuthnUnavailableException implements Exception {
   String toString() => message;
 }
 
-/// Thin bridge to the browser's native WebAuthn API (see
-/// `web/webauthn.js`). Every method here works with plain JSON
-/// (`Map<String, dynamic>`), so the rest of the app never has to think
-/// about ArrayBuffers, base64url encoding, or JS interop directly — it
-/// just passes the options it got from the backend straight through, and
-/// sends the result straight back.
-///
-/// This only works on Flutter Web (the app's only target — see
-/// PROJECT_CONTEXT.md), since Face ID on iPhone is reached here through
-/// Safari's WebAuthn implementation, not a native iOS API.
+/// Thin bridge to the browser's WebAuthn API (see `web/webauthn.js`). Methods take and return plain
+/// JSON, so the rest of the app never deals with ArrayBuffers or base64url. Web only: Face ID on iPhone
+/// is reached through Safari's WebAuthn implementation.
 class WebAuthnClient {
   const WebAuthnClient();
 
-  /// Whether this browser exposes the WebAuthn APIs at all. False on very
-  /// old browsers or non-secure (non-HTTPS) contexts — the app should fall
-  /// back to email + password without even showing the Passkey option.
+  /// Whether the browser exposes the WebAuthn APIs at all (false on very old browsers or non-HTTPS
+  /// contexts). If not, the passkey option is hidden and email + password is used.
   bool get isSupported {
     try {
       return _isSupported().toDart;
@@ -49,10 +39,9 @@ class WebAuthnClient {
     }
   }
 
-  /// Whether a *platform* authenticator (Face ID, Touch ID, Windows Hello,
-  /// Android biometrics...) is available — as opposed to only external
-  /// security keys. Used purely to tailor the button copy ("Continuar con
-  /// Face ID" vs a more generic "Continuar con Passkey").
+  /// Whether a platform authenticator (Face ID, Touch ID, Windows Hello, Android biometrics) is
+  /// available, as opposed to only security keys. Only used to choose the button copy ("Continuar con
+  /// Face ID" vs "Continuar con Passkey").
   Future<bool> isPlatformAuthenticatorAvailable() async {
     if (!isSupported) return false;
     try {
@@ -63,18 +52,14 @@ class WebAuthnClient {
     }
   }
 
-  /// Runs `navigator.credentials.create()` with the registration options
-  /// returned by `POST /auth/passkeys/registration/options`, and returns
-  /// the response JSON ready to send straight to
-  /// `POST /auth/passkeys/registration/verify`.
+  /// Runs `navigator.credentials.create()` with the options from `POST /auth/passkeys/registration/options`
+  /// and returns the JSON for `POST /auth/passkeys/registration/verify`.
   Future<Map<String, dynamic>> register(Map<String, dynamic> options) {
     return _run(() => _register(jsonEncode(options).toJS));
   }
 
-  /// Runs `navigator.credentials.get()` with the authentication options
-  /// returned by `POST /auth/passkeys/authentication/options`, and
-  /// returns the response JSON ready to send straight to
-  /// `POST /auth/passkeys/authentication/verify`.
+  /// Runs `navigator.credentials.get()` with the options from `POST /auth/passkeys/authentication/options`
+  /// and returns the JSON for `POST /auth/passkeys/authentication/verify`.
   Future<Map<String, dynamic>> authenticate(Map<String, dynamic> options) {
     return _run(() => _authenticate(jsonEncode(options).toJS));
   }

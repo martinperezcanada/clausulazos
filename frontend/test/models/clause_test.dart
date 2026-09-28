@@ -3,7 +3,8 @@ import 'package:clausulazos/models/clause.dart';
 
 void main() {
   group('Clause.isActiveAt', () {
-    test('un cláusulazo activo con expiresAt en el futuro cuenta como activo', () {
+    test('un cláusulazo activo con expiresAt en el futuro cuenta como activo',
+        () {
       final now = DateTime(2026, 9, 1, 12, 0);
       final clause = Clause(
         id: '1',
@@ -16,7 +17,9 @@ void main() {
       expect(clause.isActiveAt(now.add(const Duration(days: 1))), isTrue);
     });
 
-    test('un cláusulazo con expiresAt exactamente ahora ya NO cuenta como activo', () {
+    test(
+        'un cláusulazo con expiresAt exactamente ahora ya NO cuenta como activo',
+        () {
       final now = DateTime(2026, 9, 8, 18, 0);
       final createdAt = now.subtract(const Duration(days: 7));
       final clause = Clause(
@@ -30,7 +33,9 @@ void main() {
       expect(clause.isActiveAt(now), isFalse);
     });
 
-    test('un cláusulazo cancelado nunca cuenta como activo, aunque no haya expirado', () {
+    test(
+        'un cláusulazo cancelado nunca cuenta como activo, aunque no haya expirado',
+        () {
       final now = DateTime(2026, 9, 1, 12, 0);
       final clause = Clause(
         id: '3',

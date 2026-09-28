@@ -5,14 +5,9 @@ import { ClausesService } from './clauses.service';
 import { computeExpiresAt, CLAUSE_DURATION_MS } from './clauses.constants';
 
 /**
- * These are integration tests: they run against a REAL PostgreSQL
- * database (see README "Ejecutar los tests"), because the whole point
- * of tests 12 ("dos peticiones simultáneas") and 11 ("expiración
- * exacta") is to exercise real DB transactions/locks and real dates,
- * which a mocked Prisma client cannot faithfully reproduce.
- *
- * Each test creates its own throw-away users so tests don't interfere
- * with each other, and the whole DB is wiped in `beforeEach`.
+ * Integration tests against a real PostgreSQL database (see README): the concurrency and exact
+ * expiration cases need real transactions, locks and dates. Each test creates its own users and the
+ * database is wiped in `beforeEach`.
  */
 describe('ClausesService (integration)', () => {
   let prisma: PrismaService;
@@ -62,7 +57,6 @@ describe('ClausesService (integration)', () => {
     });
   }
 
-  // --- Test 1 ---
   it('usuario con 0 activos puede hacer cláusulazo', async () => {
     const a = await makeUser('A1');
     const b = await makeUser('B1');
@@ -71,7 +65,6 @@ describe('ClausesService (integration)', () => {
     expect(clause.toUserId).toBe(b.id);
   });
 
-  // --- Test 2 ---
   it('usuario con 1 activo puede hacer otro', async () => {
     const a = await makeUser('A2');
     const b = await makeUser('B2');
@@ -81,7 +74,6 @@ describe('ClausesService (integration)', () => {
     expect(second.toUserId).toBe(c.id);
   });
 
-  // --- Test 3 ---
   it('usuario con 2 activos NO puede hacer otro', async () => {
     const a = await makeUser('A3');
     const b = await makeUser('B3');
@@ -92,7 +84,6 @@ describe('ClausesService (integration)', () => {
     await expect(service.create(a.id, d.id)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  // --- Test 4 ---
   it('cuando uno de los dos expira, puede volver a hacer otro', async () => {
     const a = await makeUser('A4');
     const b = await makeUser('B4');
@@ -105,7 +96,6 @@ describe('ClausesService (integration)', () => {
     expect(third.toUserId).toBe(d.id);
   });
 
-  // --- Test 5 ---
   it('usuario con 0 recibidos puede recibir', async () => {
     const a = await makeUser('A5');
     const b = await makeUser('B5');
@@ -113,7 +103,6 @@ describe('ClausesService (integration)', () => {
     expect(clause.toUserId).toBe(b.id);
   });
 
-  // --- Test 6 ---
   it('usuario con 1 recibido puede recibir otro', async () => {
     const a = await makeUser('A6');
     const b = await makeUser('B6');
@@ -123,7 +112,6 @@ describe('ClausesService (integration)', () => {
     expect(clause.toUserId).toBe(c.id);
   });
 
-  // --- Test 7 ---
   it('usuario con 2 recibidos activos NO puede recibir otro', async () => {
     const a = await makeUser('A7');
     const b = await makeUser('B7');
@@ -134,7 +122,6 @@ describe('ClausesService (integration)', () => {
     await expect(service.create(c.id, target.id)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  // --- Test 8 ---
   it('cuando uno recibido expira, puede recibir otro', async () => {
     const a = await makeUser('A8');
     const b = await makeUser('B8');
@@ -147,13 +134,11 @@ describe('ClausesService (integration)', () => {
     expect(clause.toUserId).toBe(target.id);
   });
 
-  // --- Test 9 ---
   it('no puede clausularse a sí mismo', async () => {
     const a = await makeUser('A9');
     await expect(service.create(a.id, a.id)).rejects.toThrow();
   });
 
-  // --- Test 10 ---
   it('un cláusulazo recién creado tiene expiresAt = createdAt + 7 días', async () => {
     const a = await makeUser('A10');
     const b = await makeUser('B10');
@@ -162,7 +147,6 @@ describe('ClausesService (integration)', () => {
     expect(diff).toBe(CLAUSE_DURATION_MS);
   });
 
-  // --- Test 11 ---
   it('un cláusulazo exactamente en su fecha de expiración ya NO cuenta como activo', async () => {
     const a = await makeUser('A11');
     const b = await makeUser('B11');
@@ -178,7 +162,6 @@ describe('ClausesService (integration)', () => {
     expect(clause.toUserId).toBe(b.id);
   });
 
-  // --- Test 12 ---
   it('dos peticiones simultáneas no pueden provocar 3 activos', async () => {
     const a = await makeUser('A12');
     const b = await makeUser('B12');
@@ -202,7 +185,6 @@ describe('ClausesService (integration)', () => {
     expect(stats.received.active).toBe(2); // never 3
   });
 
-  // --- Test 13 ---
   it('cancelar cláusulazo libera ambas plazas', async () => {
     const a = await makeUser('A13');
     const b = await makeUser('B13');
@@ -221,7 +203,6 @@ describe('ClausesService (integration)', () => {
     expect(statsB.received.active).toBe(0);
   });
 
-  // --- Test 14 ---
   it('cláusulazos expirados siguen apareciendo en historial', async () => {
     const a = await makeUser('A14');
     const b = await makeUser('B14');

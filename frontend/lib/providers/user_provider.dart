@@ -3,7 +3,8 @@ import '../models/user.dart';
 import '../repositories/user_repository.dart';
 
 class UserProvider extends ChangeNotifier {
-  UserProvider({required UserRepository userRepository}) : _userRepository = userRepository;
+  UserProvider({required UserRepository userRepository})
+      : _userRepository = userRepository;
 
   final UserRepository _userRepository;
 
@@ -13,9 +14,12 @@ class UserProvider extends ChangeNotifier {
   bool isLoading = false;
   String? errorMessage;
 
-  /// Refreshes everything Home/Players need. Call this whenever the app
-  /// comes back to foreground or the user pulls to refresh — a slot may
-  /// have expired while the app was in the background (rule #35).
+  /// Admin-only: accounts awaiting approval (see `loadPendingUsers()`). Empty for regular users.
+  List<AppUser> pendingUsers = [];
+  bool isLoadingPending = false;
+
+  /// Refreshes everything Home/Players need. Call it when the app returns to the foreground or on pull to
+  /// refresh: a slot may have expired in the meantime.
   Future<void> refreshAll() async {
     isLoading = true;
     errorMessage = null;
@@ -43,6 +47,48 @@ class UserProvider extends ChangeNotifier {
       notifyListeners();
     } catch (_) {
       // best-effort; a full refreshAll() will surface errors properly
+    }
+  }
+
+  /// Admin-only: loads accounts awaiting approval. For a non-admin the backend answers 403 and this fails
+  /// silently, like `refreshStatsOnly()`; Managers only calls it in admin mode.
+  Future<void> loadPendingUsers() async {
+    isLoadingPending = true;
+    notifyListeners();
+    try {
+      pendingUsers = await _userRepository.fetchPendingUsers();
+    } catch (_) {
+      pendingUsers = [];
+    } finally {
+      isLoadingPending = false;
+      notifyListeners();
+    }
+  }
+
+  /// Returns true on success; call `refreshAll()` afterwards so the approved manager shows up.
+  Future<bool> approveUser(String id) async {
+    try {
+      await _userRepository.approveUser(id);
+      pendingUsers = pendingUsers.where((u) => u.id != id).toList();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> rejectUser(String id) async {
+    try {
+      await _userRepository.rejectUser(id);
+      pendingUsers = pendingUsers.where((u) => u.id != id).toList();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      errorMessage = e.toString();
+      notifyListeners();
+      return false;
     }
   }
 }

@@ -18,8 +18,12 @@ class AppUser {
       id: json['id'] as String,
       name: json['name'] as String,
       email: json['email'] as String,
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : null,
-      stats: json['stats'] != null ? UserStats.fromJson(json['stats'] as Map<String, dynamic>) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
+      stats: json['stats'] != null
+          ? UserStats.fromJson(json['stats'] as Map<String, dynamic>)
+          : null,
     );
   }
 }
@@ -39,10 +43,8 @@ class SlotStats {
 
   bool get isComplete => available <= 0;
 
-  /// True when `active` has gone past `limit` — e.g. a third LALIGA-detected
-  /// clause got confirmed while two were already active. The backend never
-  /// hides this (it doesn't clamp `active`), so the UI can warn instead of
-  /// silently showing a wrong "2/2".
+  /// True when `active` exceeds `limit` (e.g. a third LALIGA-detected clause was confirmed while two were
+  /// active). The backend doesn't clamp `active`, so the UI can warn instead of showing a wrong "2/2".
   bool get isExceeded => active > limit;
 
   factory SlotStats.fromJson(Map<String, dynamic> json) {

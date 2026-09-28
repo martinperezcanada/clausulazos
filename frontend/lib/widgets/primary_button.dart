@@ -25,7 +25,8 @@ class PrimaryButton extends StatelessWidget {
             ? const SizedBox(
                 height: 20,
                 width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black54),
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.black54),
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -63,10 +64,14 @@ class LockedButton extends StatelessWidget {
         children: [
           const Icon(Icons.lock, color: AppColors.dangerRed),
           const SizedBox(height: 6),
-          Text(title, style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+          Text(title,
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
           if (subtitle != null) ...[
             const SizedBox(height: 4),
-            Text(subtitle!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            Text(subtitle!,
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 12)),
           ],
         ],
       ),

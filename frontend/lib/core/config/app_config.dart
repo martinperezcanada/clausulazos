@@ -1,22 +1,20 @@
-/// Centralized environment configuration. Nothing else in the app should
-/// hardcode the API base URL — everything reads it from here, so switching
-/// between development and production is a one-line change.
+import 'package:flutter/foundation.dart';
+
+/// Environment configuration; the API base URL is read from here only.
 enum AppEnvironment { development, production }
 
 class AppConfig {
   AppConfig._();
 
-  /// Change this single line to switch environments.
-  static const AppEnvironment environment = AppEnvironment.production;
+  /// Change this line to switch environments. Keep it as `production` on the real project;
+  /// `development` is only for local testing.
+  static const AppEnvironment environment = AppEnvironment.development;
   static String get apiBaseUrl {
     switch (environment) {
       case AppEnvironment.development:
-        // 10.0.2.2 is how the Android emulator reaches the host machine's
-        // localhost. If you're running on iOS simulator or a physical
-        // device on the same network, replace this accordingly (e.g.
-        // http://localhost:3000 for iOS simulator, or your machine's LAN
-        // IP for a physical device).
-        return 'http://10.0.2.2:3000';
+        // Web and the iOS simulator reach the host as `localhost`; the Android emulator needs 10.0.2.2.
+        // For a physical device, use your machine's LAN IP.
+        return kIsWeb ? 'http://localhost:3000' : 'http://10.0.2.2:3000';
       case AppEnvironment.production:
         return 'https://clausulazos.onrender.com';
     }
@@ -27,4 +25,12 @@ class AppConfig {
 
   static const int maxActiveClauses = 2;
   static const int clauseDurationDays = 7;
+
+  // Splash session check (see AuthProvider.checkSession): a few quick retries first for brief network
+  // blips, then, if the backend is still unreachable (e.g. a sleeping Render instance waking up), a
+  // slower background retry loop until it responds or a 401 arrives. Only a 401 clears the stored JWT.
+  static const int sessionCheckMaxQuickAttempts = 3;
+  static const Duration sessionCheckQuickRetryDelay = Duration(seconds: 3);
+  static const Duration sessionCheckBackgroundRetryInterval =
+      Duration(seconds: 6);
 }

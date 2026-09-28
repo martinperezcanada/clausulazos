@@ -7,11 +7,11 @@ import '../storage/token_storage.dart';
 /// AuthProvider) should clear the session and route back to Login.
 class UnauthorizedException implements Exception {}
 
-/// Wraps a configured [Dio] instance. Every repository goes through this
-/// client instead of building its own Dio — this is the single place
-/// that knows about the base URL, timeouts, auth header, and 401 handling.
+/// Wraps a configured [Dio]. Every repository goes through it: it owns the base URL, timeouts, auth
+/// header and 401 handling.
 class ApiClient {
-  ApiClient({required TokenStorage tokenStorage, void Function()? onUnauthorized})
+  ApiClient(
+      {required TokenStorage tokenStorage, void Function()? onUnauthorized})
       : _tokenStorage = tokenStorage,
         _onUnauthorized = onUnauthorized {
     _dio = Dio(
@@ -49,10 +49,8 @@ class ApiClient {
 
   Dio get dio => _dio;
 
-  /// Turns any error (Dio, socket, or otherwise) into a short, human
-  /// message safe to show in the UI. Technical details (status codes,
-  /// exception types, stack traces) are only ever printed to the debug
-  /// console — never surfaced to the person using the app.
+  /// Turns any error into a short message that is safe to show in the UI. Technical details are only
+  /// printed to the debug console.
   static String messageFromError(Object error) {
     if (kDebugMode) {
       // ignore: avoid_print
@@ -63,11 +61,13 @@ class ApiClient {
       final status = error.response?.statusCode;
       final path = error.requestOptions.path;
 
-      // Prefer the backend's own validation/business message when present
-      // — those are already written in plain Spanish for people (e.g.
-      // "Las contraseñas no coinciden"), not technical jargon.
+      // Prefer the backend's own message when present; it's already plain Spanish (e.g. "Las contraseñas no
+      // coinciden").
       final data = error.response?.data;
-      if (data is Map && data['message'] != null && status != null && status < 500) {
+      if (data is Map &&
+          data['message'] != null &&
+          status != null &&
+          status < 500) {
         final message = data['message'];
         if (message is List && message.isNotEmpty) return message.join(', ');
         if (message is String && message.isNotEmpty) return message;

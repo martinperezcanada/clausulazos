@@ -1,12 +1,7 @@
-// WebAuthn browser bridge for Clausulazos.
-//
-// The backend (@simplewebauthn/server) speaks JSON with base64url-encoded
-// binary fields (challenge, credential ids, etc.) — exactly the format
-// @simplewebauthn/browser would produce/consume. The native
-// `navigator.credentials.create()/get()` APIs, however, need real
-// ArrayBuffers for those same fields. This file is the translation layer,
-// so the Dart side (lib/core/webauthn/webauthn_client.dart) only ever
-// has to deal with plain JSON.
+// WebAuthn browser bridge. The backend (@simplewebauthn/server) speaks JSON with base64url-encoded
+// binary fields, while `navigator.credentials.create()/get()` need ArrayBuffers for those fields. This
+// file converts between the two, so the Dart side (lib/core/webauthn/webauthn_client.dart) only
+// handles plain JSON.
 (function () {
   function bufferToBase64url(buffer) {
     const bytes = new Uint8Array(buffer);

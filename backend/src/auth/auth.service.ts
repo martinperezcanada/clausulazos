@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { UserApprovalStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -33,11 +34,14 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(dto.password, SALT_ROUNDS);
 
+    // New accounts start PENDING: they can use their own account, but don't show up as a manager
+    // (`UsersService.findAll`) until an admin approves them.
     const user = await this.prisma.user.create({
       data: {
         name: dto.name.trim(),
         email: dto.email.toLowerCase(),
         password: hashedPassword,
+        status: UserApprovalStatus.PENDING,
       },
     });
 
@@ -70,10 +74,8 @@ export class AuthService {
   }
 
   /**
-   * Issues a normal session (JWT + public user) for a user who has already
-   * been authenticated by some other means — used by the Passkeys flow
-   * once a WebAuthn assertion has been verified, so passkey login produces
-   * exactly the same session shape as email+password login.
+   * Issues a session (JWT + public user) for a user already authenticated by other means,
+   * e.g. once a passkey assertion has been verified.
    */
   async issueSessionFor(user: { id: string; email: string; name: string; createdAt: Date }) {
     return this.buildAuthResponse(user);

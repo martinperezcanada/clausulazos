@@ -11,13 +11,14 @@ class AppColors {
   static const Color background = Color(0xFF080B0E);
   static const Color surface = Color(0xFF121820);
   static const Color surfaceElevated = Color(0xFF1B2430);
+  // One tone lighter than surfaceElevated, for the innermost layer (icon chips inside an elevated row).
+  static const Color surfaceHighest = Color(0xFF2A3542);
   static const Color primaryGreen = Color(0xFF10FFA0);
   static const Color dangerRed = Color(0xFFFF3366);
   static const Color textPrimary = Color(0xFFF3F4F6);
   static const Color textSecondary = Color(0xFF94A3B8);
   static const Color divider = Color(0x14FFFFFF);
-  // Used only for the CLAUSE/AGREED/PENDING movement-type indicators
-  // (🟢/🔵/🟡) in the history — everything else keeps the palette above.
+  // Only for the CLAUSE/AGREED/PENDING movement-type indicators in the history.
   static const Color infoBlue = Color(0xFF00E5FF);
   static const Color pendingYellow = Color(0xFFEAB308);
 }
@@ -28,21 +29,24 @@ class AppColors {
 class AppTextStyles {
   AppTextStyles._();
 
-  static TextStyle headline({double? fontSize, FontWeight? fontWeight, Color? color}) =>
+  static TextStyle headline(
+          {double? fontSize, FontWeight? fontWeight, Color? color}) =>
       GoogleFonts.spaceGrotesk(
         fontSize: fontSize,
         fontWeight: fontWeight ?? FontWeight.w700,
         color: color ?? AppColors.textPrimary,
       );
 
-  static TextStyle body({double? fontSize, FontWeight? fontWeight, Color? color}) =>
+  static TextStyle body(
+          {double? fontSize, FontWeight? fontWeight, Color? color}) =>
       GoogleFonts.hankenGrotesk(
         fontSize: fontSize,
         fontWeight: fontWeight,
         color: color ?? AppColors.textPrimary,
       );
 
-  static TextStyle mono({double? fontSize, FontWeight? fontWeight, Color? color}) =>
+  static TextStyle mono(
+          {double? fontSize, FontWeight? fontWeight, Color? color}) =>
       GoogleFonts.jetBrainsMono(
         fontSize: fontSize,
         fontWeight: fontWeight ?? FontWeight.w500,
@@ -102,9 +106,11 @@ class AppTheme {
             displaySmall: headlineTextStyle,
             headlineLarge: headlineTextStyle,
             headlineMedium: headlineTextStyle,
-            headlineSmall: headlineTextStyle.copyWith(fontWeight: FontWeight.w600),
+            headlineSmall:
+                headlineTextStyle.copyWith(fontWeight: FontWeight.w600),
             titleLarge: headlineTextStyle.copyWith(fontWeight: FontWeight.w600),
-            titleMedium: headlineTextStyle.copyWith(fontWeight: FontWeight.w600),
+            titleMedium:
+                headlineTextStyle.copyWith(fontWeight: FontWeight.w600),
             titleSmall: headlineTextStyle.copyWith(fontWeight: FontWeight.w600),
           ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -126,7 +132,8 @@ class AppTheme {
           side: const BorderSide(color: AppColors.divider),
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          textStyle: headlineTextStyle.copyWith(fontSize: 16, fontWeight: FontWeight.w600),
+          textStyle: headlineTextStyle.copyWith(
+              fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(

@@ -5,7 +5,9 @@ import '../models/passkey.dart';
 import '../repositories/passkeys_repository.dart';
 
 class PasskeysProvider extends ChangeNotifier {
-  PasskeysProvider({required PasskeysRepository passkeysRepository, WebAuthnClient? webAuthnClient})
+  PasskeysProvider(
+      {required PasskeysRepository passkeysRepository,
+      WebAuthnClient? webAuthnClient})
       : _passkeysRepository = passkeysRepository,
         _webAuthnClient = webAuthnClient ?? const WebAuthnClient();
 
@@ -33,10 +35,8 @@ class PasskeysProvider extends ChangeNotifier {
     }
   }
 
-  /// Full registration ceremony: fetch options, run
-  /// `navigator.credentials.create()` in the browser (this is what
-  /// triggers the Face ID prompt), then verify with the backend.
-  /// [name] is an optional friendly label, e.g. "iPhone de Martín".
+  /// Passkey registration: fetch options, run `navigator.credentials.create()` (which opens the Face ID
+  /// dialog) and verify with the backend. [name] is an optional label, e.g. "iPhone de Martín".
   Future<bool> registerPasskey({String? name}) async {
     if (!isSupported) {
       errorMessage = 'Este navegador no admite Passkeys/Face ID.';
@@ -50,7 +50,8 @@ class PasskeysProvider extends ChangeNotifier {
     try {
       final options = await _passkeysRepository.getRegistrationOptions();
       final credentialResponse = await _webAuthnClient.register(options);
-      await _passkeysRepository.verifyRegistration(credentialResponse, name: name);
+      await _passkeysRepository.verifyRegistration(credentialResponse,
+          name: name);
       await load();
       return true;
     } on WebAuthnUnavailableException catch (e) {

@@ -9,7 +9,8 @@ class AuthResult {
 }
 
 class AuthRepository {
-  AuthRepository({required ApiClient apiClient, required TokenStorage tokenStorage})
+  AuthRepository(
+      {required ApiClient apiClient, required TokenStorage tokenStorage})
       : _apiClient = apiClient,
         _tokenStorage = tokenStorage;
 
@@ -31,7 +32,8 @@ class AuthRepository {
     return _handleAuthResponse(response.data as Map<String, dynamic>);
   }
 
-  Future<AuthResult> login({required String email, required String password}) async {
+  Future<AuthResult> login(
+      {required String email, required String password}) async {
     final response = await _apiClient.dio.post('/auth/login', data: {
       'email': email,
       'password': password,
@@ -53,7 +55,8 @@ class AuthRepository {
 
   Future<void> logout() => _tokenStorage.clearToken();
 
-  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
+  Future<void> changePassword(
+      {required String currentPassword, required String newPassword}) async {
     await _apiClient.dio.post('/auth/change-password', data: {
       'currentPassword': currentPassword,
       'newPassword': newPassword,

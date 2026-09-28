@@ -19,8 +19,7 @@ import { PasskeysService } from './passkeys.service';
 import { VerifyRegistrationDto } from './dto/verify-registration.dto';
 import { LoginOptionsDto, VerifyAuthenticationDto } from './dto/login-options.dto';
 
-// A handful of requests per minute is more than enough for a real user
-// registering/logging in, while still blunting brute-force attempts.
+// A few requests per minute are plenty for a real user and slow down brute force.
 const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
 
 @Controller('auth/passkeys')

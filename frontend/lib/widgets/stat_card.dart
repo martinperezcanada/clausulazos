@@ -16,16 +16,16 @@ class StatCard extends StatelessWidget {
   final SlotStats stats;
   final String Function(int available) availableLabelBuilder;
 
-  /// e.g. 'realizados' / 'recibidos' — used to build the over-limit warning
-  /// text. Only needed when this card can ever show an excess; optional so
-  /// this widget stays usable without it if ever reused elsewhere.
+  /// e.g. 'realizados' / 'recibidos', used in the over-limit warning. Only needed when the card can show
+  /// an excess.
   final String? overLimitCategory;
 
   String? _overLimitMessage() {
     if (overLimitCategory == null) return null;
     final excess = stats.active - stats.limit;
     if (excess <= 0) return null;
-    if (excess == 1) return 'Has superado el límite de cláusulazos $overLimitCategory.';
+    if (excess == 1)
+      return 'Has superado el límite de cláusulazos $overLimitCategory.';
     return 'Has superado el límite por $excess cláusulazos.';
   }
 
@@ -59,7 +59,9 @@ class StatCard extends StatelessWidget {
                     style: AppTextStyles.mono(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      color: isExceeded ? AppColors.dangerRed : AppColors.textPrimary,
+                      color: isExceeded
+                          ? AppColors.dangerRed
+                          : AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -75,7 +77,9 @@ class StatCard extends StatelessWidget {
                           height: 14,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: occupied ? AppColors.dangerRed : AppColors.primaryGreen,
+                            color: occupied
+                                ? AppColors.dangerRed
+                                : AppColors.primaryGreen,
                           ),
                         );
                       }),
@@ -87,11 +91,14 @@ class StatCard extends StatelessWidget {
               if (isComplete)
                 Row(
                   children: [
-                    const Icon(Icons.lock, size: 16, color: AppColors.dangerRed),
+                    const Icon(Icons.lock,
+                        size: 16, color: AppColors.dangerRed),
                     const SizedBox(width: 6),
                     Text(
                       'COMPLETO',
-                      style: AppTextStyles.mono(color: AppColors.dangerRed, fontWeight: FontWeight.bold),
+                      style: AppTextStyles.mono(
+                          color: AppColors.dangerRed,
+                          fontWeight: FontWeight.bold),
                     ),
                   ],
                 )
@@ -104,14 +111,16 @@ class StatCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   ReleaseTimeFormatter.describe(stats.nextReleaseAt!),
-                  style: AppTextStyles.mono(color: AppColors.textSecondary, fontSize: 12),
+                  style: AppTextStyles.mono(
+                      color: AppColors.textSecondary, fontSize: 12),
                 ),
               ],
               if (isExceeded && _overLimitMessage() != null) ...[
                 const SizedBox(height: 10),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: AppColors.dangerRed.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(8),

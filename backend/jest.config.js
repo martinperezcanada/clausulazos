@@ -9,4 +9,7 @@ module.exports = {
   coverageDirectory: './coverage',
   testEnvironment: 'node',
   roots: ['<rootDir>/src', '<rootDir>/test'],
+  // The integration specs share one database and truncate global tables in `beforeEach`, so running
+  // files in parallel makes them race each other. Run them serially.
+  maxWorkers: 1,
 };

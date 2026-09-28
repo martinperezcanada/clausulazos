@@ -5,9 +5,8 @@ import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 /**
- * End-to-end test of the full HTTP flow: register -> login -> create a
- * clause -> read stats. Requires a real PostgreSQL database reachable
- * via DATABASE_URL (see README).
+ * End-to-end test of the HTTP flow: register, login, create a clause and read stats. Needs a real
+ * PostgreSQL database through DATABASE_URL (see README).
  */
 describe('Clausulazos API (e2e)', () => {
   let app: INestApplication;
