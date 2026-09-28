@@ -12,6 +12,6 @@ flutter --version
 
 flutter pub get
 
-flutter build web --release
+flutter build web --release --dart-define=API_BASE_URL="${VITE_API_URL:-https://clausulazos.onrender.com}"
 
 echo "Build Flutter terminado"

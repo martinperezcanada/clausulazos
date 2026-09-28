@@ -9,7 +9,14 @@ class AppConfig {
   /// Change this line to switch environments. Keep it as `production` on the real project;
   /// `development` is only for local testing.
   static const AppEnvironment environment = AppEnvironment.development;
+
+  /// Build-time override (`--dart-define=API_BASE_URL=...`); vercel-build.sh sets it for the web deploy.
+  static const String _apiBaseUrlOverride = String.fromEnvironment(
+    'API_BASE_URL',
+  );
+
   static String get apiBaseUrl {
+    if (_apiBaseUrlOverride.isNotEmpty) return _apiBaseUrlOverride;
     switch (environment) {
       case AppEnvironment.development:
         // Web and the iOS simulator reach the host as `localhost`; the Android emulator needs 10.0.2.2.
