@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/amount_formatter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/clause.dart';
+import '../player_avatar.dart';
 import 'pulsing_dot.dart';
 
 /// The red "IMPORTANTE" card. Shows either a PENDING clause awaiting this user's classification, with
@@ -166,15 +167,11 @@ class _PendingClausePanel extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                    color: AppColors.surfaceElevated,
-                    borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.sports_soccer_rounded,
-                    color: AppColors.textSecondary, size: 22),
+              PlayerAvatar(
+                imageUrl: clause.playerImageUrl,
+                size: 48,
+                iconSize: 22,
+                backgroundColor: AppColors.surfaceElevated,
               ),
               const SizedBox(width: 12),
               Expanded(

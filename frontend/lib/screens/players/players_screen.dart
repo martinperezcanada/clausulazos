@@ -7,6 +7,7 @@ import '../../providers/admin_mode_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/clause_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../widgets/app_snack_bar.dart';
 import '../../widgets/app_top_bar.dart';
 import '../../widgets/filter_pill.dart';
 import '../../widgets/player_card.dart';
@@ -73,13 +74,27 @@ class _PlayersScreenState extends State<PlayersScreen> {
 
   Future<void> _approve(String userId) async {
     final ok = await context.read<UserProvider>().approveUser(userId);
-    if (ok && mounted) {
+    if (!mounted) return;
+    if (ok) {
       await context.read<UserProvider>().refreshAll();
+    } else {
+      _showActionError();
     }
   }
 
   Future<void> _reject(String userId) async {
-    await context.read<UserProvider>().rejectUser(userId);
+    final ok = await context.read<UserProvider>().rejectUser(userId);
+    if (!ok && mounted) _showActionError();
+  }
+
+  void _showActionError() {
+    AppSnackBar.show(
+      context,
+      message: context.read<UserProvider>().actionErrorMessage ??
+          'Ha ocurrido un error. Inténtalo de nuevo.',
+      icon: Icons.error_outline_rounded,
+      iconColor: AppColors.dangerRed,
+    );
   }
 
   @override

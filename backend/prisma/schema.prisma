@@ -59,6 +59,8 @@ model Clause {
   playerMasterId   String?
   // Best effort: read from the LALIGA activity payload when present, null otherwise.
   playerName       String?
+  // Official player picture from LALIGA's player endpoint (`playerMaster.images`), null when unknown.
+  playerImageUrl   String?
   amount           Int?
 
   fromUserId String

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/config/app_config.dart';
 import '../../core/notifications/expiration_notices.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/clause.dart';
@@ -44,8 +43,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // catches up with syncs done elsewhere (cron, another device, a manual /fantasy/sync) while this
     // screen is open.
     _ticker = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) context.read<FantasySyncProvider>().load();
+      if (!mounted) return;
+      _loadSyncStatus(context.read<FantasySyncProvider>().load);
+      // If the last refresh failed (e.g. the backend was waking up and timed out), retry it on this same
+      // tick until it succeeds, so the error under the cards doesn't stay on screen once the server answers.
+      final userProvider = context.read<UserProvider>();
+      if (userProvider.errorMessage != null && !userProvider.isLoading) {
+        userProvider.refreshAll();
+      }
     });
+  }
+
+  // Runs a sync-status load (the periodic check, or the admin's forced sync) and, if it reveals a new sync
+  // that changed clauses, reloads the movements and slot stats once, so a movement completed or
+  // reconciled by the sync replaces what Inicio was showing.
+  Future<T> _loadSyncStatus<T>(Future<T> Function() loadStatus) async {
+    final syncProvider = context.read<FantasySyncProvider>();
+    final revision = syncProvider.clauseChangesRevision;
+    final result = await loadStatus();
+    if (mounted && syncProvider.clauseChangesRevision != revision) {
+      await Future.wait([
+        context.read<ClauseProvider>().loadHistory(),
+        context.read<UserProvider>().refreshStatsOnly(),
+      ]);
+    }
+    return result;
   }
 
   @override
@@ -140,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (confirmed != true || !mounted) return;
 
     final provider = context.read<FantasySyncProvider>();
-    final ok = await provider.forceSync();
+    final ok = await _loadSyncStatus(provider.forceSync);
     if (!mounted) return;
     if (!ok) {
       AppSnackBar.show(
@@ -318,11 +340,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           ],
                         ),
                         const SizedBox(height: 14),
+                        // Counts come from `myStats` (backend `getStatsForUser`), the same source as Managers.
                         ExecutedClauseCard(
                           activeClauses: activePerformed,
-                          active: activePerformed.length,
-                          limit: stats?.performed.limit ??
-                              AppConfig.maxActiveClauses,
+                          stats: stats?.performed,
                         ),
                         if (stats != null && stats.performed.isExceeded) ...[
                           const SizedBox(height: 8),
@@ -334,10 +355,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         const SizedBox(height: 16),
                         ReceivedClauseCard(
                           activeClauses: activeReceived,
-                          active:
-                              stats?.received.active ?? activeReceived.length,
-                          limit: stats?.received.limit ??
-                              AppConfig.maxActiveClauses,
+                          stats: stats?.received,
                         ),
                         if (stats != null && stats.received.isExceeded) ...[
                           const SizedBox(height: 8),

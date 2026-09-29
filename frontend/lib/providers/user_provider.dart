@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../core/network/api_client.dart';
 import '../models/user.dart';
 import '../repositories/user_repository.dart';
 
@@ -12,7 +13,14 @@ class UserProvider extends ChangeNotifier {
   UserStats? myStats;
   AppUser? me;
   bool isLoading = false;
+
+  /// Why the last `refreshAll()` failed (user-facing, from `ApiClient.messageFromError`); Inicio shows it.
+  /// Only `refreshAll()` sets or clears it.
   String? errorMessage;
+
+  /// Why the last admin approve/reject failed, shown by Managers where the action happened. Kept apart
+  /// from `errorMessage` so a failed admin action doesn't end up displayed on Inicio.
+  String? actionErrorMessage;
 
   /// Admin-only: accounts awaiting approval (see `loadPendingUsers()`). Empty for regular users.
   List<AppUser> pendingUsers = [];
@@ -34,7 +42,7 @@ class UserProvider extends ChangeNotifier {
       myStats = results[1] as UserStats;
       players = results[2] as List<AppUser>;
     } catch (e) {
-      errorMessage = e.toString();
+      errorMessage = ApiClient.messageFromError(e);
     } finally {
       isLoading = false;
       notifyListeners();
@@ -67,26 +75,28 @@ class UserProvider extends ChangeNotifier {
 
   /// Returns true on success; call `refreshAll()` afterwards so the approved manager shows up.
   Future<bool> approveUser(String id) async {
+    actionErrorMessage = null;
     try {
       await _userRepository.approveUser(id);
       pendingUsers = pendingUsers.where((u) => u.id != id).toList();
       notifyListeners();
       return true;
     } catch (e) {
-      errorMessage = e.toString();
+      actionErrorMessage = ApiClient.messageFromError(e);
       notifyListeners();
       return false;
     }
   }
 
   Future<bool> rejectUser(String id) async {
+    actionErrorMessage = null;
     try {
       await _userRepository.rejectUser(id);
       pendingUsers = pendingUsers.where((u) => u.id != id).toList();
       notifyListeners();
       return true;
     } catch (e) {
-      errorMessage = e.toString();
+      actionErrorMessage = ApiClient.messageFromError(e);
       notifyListeners();
       return false;
     }

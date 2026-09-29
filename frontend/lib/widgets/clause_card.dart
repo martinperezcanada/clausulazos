@@ -9,6 +9,7 @@ import '../models/clause.dart';
 import '../providers/clause_provider.dart';
 import 'app_snack_bar.dart';
 import 'dashboard/pulsing_dot.dart';
+import 'player_avatar.dart';
 
 /// A movement in the Activity feed or a manager's history: a colored tag bar (type of movement,
 /// relative time), player and route, amount, and a bottom area that depends on the state (cooldown
@@ -188,16 +189,8 @@ class ClauseCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                    color: AppColors.surfaceHighest,
-                    borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.sports_soccer_rounded,
-                    color: AppColors.textSecondary, size: 20),
-              ),
+              PlayerAvatar(
+                  imageUrl: clause.playerImageUrl, size: 44, iconSize: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

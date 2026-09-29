@@ -9,6 +9,7 @@ import 'package:clausulazos/repositories/auth_repository.dart';
 import 'package:clausulazos/repositories/passkeys_repository.dart';
 import 'package:clausulazos/screens/auth/login_screen.dart';
 import 'package:clausulazos/screens/auth/register_screen.dart';
+import 'package:clausulazos/widgets/gavel_logo.dart';
 import 'package:clausulazos/core/network/api_client.dart';
 import 'package:clausulazos/core/storage/token_storage.dart';
 
@@ -90,5 +91,55 @@ void main() {
       expect(find.text('Mínimo 6 caracteres'), findsOneWidget);
       expect(find.text('Las contraseñas no coinciden'), findsOneWidget);
     });
+  });
+
+  testWidgets('LoginScreen: sin logo ni texto encima de "Bienvenido Mánager"',
+      (tester) async {
+    await tester.pumpWidget(_wrap(const LoginScreen()));
+
+    expect(find.text('CLAUSULAZOS'), findsNothing);
+    expect(find.byType(GavelLogo), findsNothing);
+    expect(find.text('Bienvenido Mánager'), findsOneWidget);
+  });
+
+  testWidgets(
+      'LoginScreen: halo que respira detrás del formulario, sin tapar nada y liberado al salir',
+      (tester) async {
+    await tester.pumpWidget(_wrap(const LoginScreen()));
+
+    final glow = find.byKey(const Key('login-form-glow'));
+    expect(glow, findsOneWidget);
+
+    // Behind the form card: in the same Stack, painted before it, and it never takes touches.
+    final stack = find.ancestor(of: glow, matching: find.byType(Stack)).first;
+    final layers = tester.widget<Stack>(stack).children;
+    expect(layers.first, isA<Positioned>());
+    expect(find.ancestor(of: glow, matching: find.byType(IgnorePointer)),
+        findsWidgets);
+
+    // Breathes slowly between a faint minimum and a slightly brighter maximum, never off.
+    double alpha() {
+      final box = tester.widget<DecoratedBox>(glow);
+      final gradient = (box.decoration as BoxDecoration).gradient!;
+      return gradient.colors.first.a;
+    }
+
+    final samples = <double>[];
+    for (var i = 0; i < 26; i++) {
+      samples.add(alpha());
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    final lo = samples.reduce((a, b) => a < b ? a : b);
+    final hi = samples.reduce((a, b) => a > b ? a : b);
+    expect(lo, greaterThan(0.04));
+    expect(hi, lessThan(0.09));
+    expect(hi - lo, greaterThan(0.02)); // it does breathe
+    // Smooth: no jump between consecutive frames 200 ms apart.
+    for (var i = 1; i < samples.length; i++) {
+      expect((samples[i] - samples[i - 1]).abs(), lessThan(0.005));
+    }
+
+    // Leaving the screen disposes the controller (a running ticker here would fail the test).
+    await tester.pumpWidget(const SizedBox());
   });
 }

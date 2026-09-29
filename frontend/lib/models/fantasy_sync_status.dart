@@ -6,11 +6,15 @@ class FantasySyncStatus {
     this.lastSuccessfulSyncAt,
     this.lastAttemptAt,
     this.lastStatus,
+    this.lastChangeCount = 0,
   });
 
   final DateTime? lastSuccessfulSyncAt;
   final DateTime? lastAttemptAt;
   final String? lastStatus;
+
+  /// Clauses the last successful sync created, completed or reconciled; 0 when it changed nothing.
+  final int lastChangeCount;
 
   factory FantasySyncStatus.fromJson(Map<String, dynamic> json) {
     return FantasySyncStatus(
@@ -21,6 +25,7 @@ class FantasySyncStatus {
           ? DateTime.parse(json['lastAttemptAt'] as String).toLocal()
           : null,
       lastStatus: json['lastStatus'] as String?,
+      lastChangeCount: (json['lastChangeCount'] as num?)?.toInt() ?? 0,
     );
   }
 }

@@ -396,32 +396,12 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// Small pill badge, e.g. "2/2 AGOTADAS" / "1/2 VULNERABLE".
-class _Badge extends StatelessWidget {
-  const _Badge({required this.text, required this.color});
-
-  final String text;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(999)),
-      child: Text(
-        text,
-        style: AppTextStyles.mono(
-            fontSize: 10, fontWeight: FontWeight.w700, color: color),
-      ),
-    );
-  }
-}
-
-/// Shared card for "Cláusulas Realizadas" and "Cláusulas Recibidas": same container, header, badge, slot
-/// bar and countdown, driven by the `SlotStats` passed in. Only the wording and icons differ between
+/// Shared card for "Cláusulas Realizadas" and "Cláusulas Recibidas": same container, header, status,
+/// slot bar and countdown, driven by the `SlotStats` passed in. Only the wording and icons differ between
 /// the two call sites (see `ManagerDetailScreen.build`).
+///
+/// Colour is kept to accents: neutral surfaces and text carry the information, a small status dot says
+/// whether there is room (green) or not (red), and the slot bar fills occupied slots in that colour.
 class _ClauseStatCard extends StatelessWidget {
   const _ClauseStatCard({
     required this.title,
@@ -451,63 +431,92 @@ class _ClauseStatCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-          color: AppColors.surfaceElevated,
-          borderRadius: BorderRadius.circular(12)),
-      padding: const EdgeInsets.all(16),
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider),
+      ),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceHighest.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  isComplete ? completeIcon : availableIcon,
+                  color: isComplete
+                      ? AppColors.dangerRed
+                      : AppColors.textSecondary,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        Text(
-                          title,
-                          style: AppTextStyles.mono(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textSecondary)
-                              .copyWith(letterSpacing: 0.8),
-                        ),
-                        _Badge(
-                          text:
-                              '${stats.active}/${stats.limit} ${isComplete ? badgeCompleteSuffix : badgeAvailableSuffix}',
-                          color: stateColor,
-                        ),
-                      ],
+                    Text(
+                      title,
+                      style: AppTextStyles.mono(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary)
+                          .copyWith(letterSpacing: 0.8),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      isComplete ? completeSubtitle : availableSubtitle,
-                      style: AppTextStyles.body(
-                        fontSize: 12,
-                        fontWeight:
-                            isComplete ? FontWeight.normal : FontWeight.w500,
-                        color: isComplete
-                            ? AppColors.textSecondary
-                            : AppColors.primaryGreen,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                              color: stateColor, shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          isComplete
+                              ? badgeCompleteSuffix
+                              : badgeAvailableSuffix,
+                          style: AppTextStyles.mono(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary)
+                              .copyWith(letterSpacing: 0.6),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              Icon(
-                isComplete ? completeIcon : availableIcon,
-                color: stateColor,
-                size: 24,
+              const SizedBox(width: 12),
+              Text.rich(
+                TextSpan(
+                  text: '${stats.active}',
+                  style: AppTextStyles.headline(
+                      fontSize: 26, fontWeight: FontWeight.w700),
+                  children: [
+                    TextSpan(
+                      text: '/${stats.limit}',
+                      style: AppTextStyles.headline(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
           if (stats.limit > 0) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Row(
               children: List.generate(stats.limit, (i) {
                 final occupied = i < stats.active;
@@ -517,21 +526,27 @@ class _ClauseStatCard extends StatelessWidget {
                     height: 6,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),
-                      color: occupied
-                          ? AppColors.dangerRed
-                          : AppColors.primaryGreen,
+                      // Same colours as the Managers list (`PlayerCard`): occupied slots green, all red once
+                      // full, free slots grey.
+                      color: occupied ? stateColor : AppColors.surfaceHighest,
                     ),
                   ),
                 );
               }),
             ),
           ],
+          const SizedBox(height: 12),
+          Text(
+            isComplete ? completeSubtitle : availableSubtitle,
+            style: AppTextStyles.body(
+                fontSize: 12, color: AppColors.textSecondary),
+          ),
           if (isComplete && stats.nextReleaseAt != null) ...[
             const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
               decoration: BoxDecoration(
-                  color: AppColors.background,
+                  color: AppColors.background.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(8)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -539,7 +554,7 @@ class _ClauseStatCard extends StatelessWidget {
                   Row(
                     children: [
                       const Icon(Icons.hourglass_bottom_rounded,
-                          size: 14, color: AppColors.dangerRed),
+                          size: 14, color: AppColors.textSecondary),
                       const SizedBox(width: 6),
                       Text(
                         'Próxima liberación',
@@ -553,7 +568,7 @@ class _ClauseStatCard extends StatelessWidget {
                     style: AppTextStyles.mono(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.dangerRed),
+                        color: AppColors.textPrimary),
                   ),
                 ],
               ),

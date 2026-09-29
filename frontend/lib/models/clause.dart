@@ -53,6 +53,7 @@ class Clause {
     this.fromUser,
     this.toUser,
     this.playerName,
+    this.playerImageUrl,
     this.amount,
   });
 
@@ -69,6 +70,8 @@ class Clause {
   final AppUser? toUser;
   // Best effort: LALIGA's sync payload doesn't always resolve a name, so this can be null.
   final String? playerName;
+  // Official LALIGA picture of the player, filled by the Fantasy sync; null when unknown.
+  final String? playerImageUrl;
   final int? amount;
 
   /// Falls back to "un jugador" when the name is unknown.
@@ -113,6 +116,7 @@ class Clause {
           ? AppUser.fromJson(json['toUser'] as Map<String, dynamic>)
           : null,
       playerName: json['playerName'] as String?,
+      playerImageUrl: json['playerImageUrl'] as String?,
       amount: json['amount'] as int?,
     );
   }

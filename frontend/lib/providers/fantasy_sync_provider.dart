@@ -18,11 +18,24 @@ class FantasySyncProvider extends ChangeNotifier {
   /// Reason the last `forceSync()` failed, from `ApiClient.messageFromError`.
   String? forceSyncError;
 
+  /// Goes up by one each time `load()` sees a sync newer than the previous one that changed clauses (see
+  /// `FantasySyncStatus.lastChangeCount`), whoever ran it (cron or admin). Screens compare it before and
+  /// after `load()` to reload their clauses once per such sync. The first `load()` never bumps it.
+  int clauseChangesRevision = 0;
+
   Future<void> load() async {
     isLoading = true;
     notifyListeners();
     try {
+      final previous = status?.lastSuccessfulSyncAt;
       status = await _fantasyRepository.fetchSyncStatus();
+      final current = status?.lastSuccessfulSyncAt;
+      if (previous != null &&
+          current != null &&
+          current.isAfter(previous) &&
+          status!.lastChangeCount > 0) {
+        clauseChangesRevision++;
+      }
     } catch (_) {
       // Best effort: on failure the dashboard just hides the sync line.
     } finally {

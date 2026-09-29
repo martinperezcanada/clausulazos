@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 
@@ -5,12 +7,21 @@ import '../core/theme/app_theme.dart';
 /// (which animates `angle`/`ring`) and the login (static), so both show the same logo. Scales
 /// proportionally with `size` (designed at 128).
 ///
-/// `angle` is the gavel's swing around the top of its handle (0 = struck, negative = raised); `ring` is
-/// the impact ripple progress (0 = none).
+/// By default the gavel stands upright on the block (login). With `striking` the very same gavel, one
+/// rigid piece, is held by a hand at the right end of its handle: handle pointing right, the slim head
+/// upright on the left. `angle` turns the whole gavel around that grip, like a wrist (0 = struck, the
+/// head's face resting on the block; positive = raised). `ring` is the impact ripple progress (0 = none).
 class GavelLogo extends StatelessWidget {
-  const GavelLogo({super.key, this.size = 128, this.angle = 0, this.ring = 0});
+  const GavelLogo({
+    super.key,
+    this.size = 128,
+    this.striking = false,
+    this.angle = 0,
+    this.ring = 0,
+  });
 
   final double size;
+  final bool striking;
   final double angle;
   final double ring;
 
@@ -35,7 +46,8 @@ class GavelLogo extends StatelessWidget {
           ),
         ],
       ),
-      child: CustomPaint(painter: GavelPainter(angle: angle, ring: ring)),
+      child: CustomPaint(
+          painter: GavelPainter(striking: striking, angle: angle, ring: ring)),
     );
   }
 }
@@ -43,8 +55,9 @@ class GavelLogo extends StatelessWidget {
 /// Draws the gavel with plain rounded rectangles so it stays crisp at any size. Accents: two green
 /// bands on the head and, on impact, a green ripple from the block.
 class GavelPainter extends CustomPainter {
-  GavelPainter({required this.angle, required this.ring});
+  GavelPainter({this.striking = false, this.angle = 0, required this.ring});
 
+  final bool striking;
   final double angle;
   final double ring;
 
@@ -52,6 +65,15 @@ class GavelPainter extends CustomPainter {
   static const double _pivotX = 64;
   static const double _pivotY = 18;
   static const double _blockTop = 92;
+
+  // Striking pose: where the hand holds the handle, 5 units in from its end. It is the fixed pivot of
+  // the strike. Placed so that, struck, the head (54 long, 55 from the grip) stands on the block with its
+  // face on the block's top.
+  static const Offset _grip = Offset(115, _blockTop - 27);
+
+  // The grip in the gavel's own drawing frame (the frame the upright logo is drawn in, origin at the
+  // handle's end).
+  static const double _gripOnHandle = 5;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -77,10 +99,18 @@ class GavelPainter extends CustomPainter {
       );
     }
 
-    // Gavel, swinging around the top of its handle.
+    // The whole gavel (handle, head and bands) is drawn below in one frame, so every transform set up here
+    // applies to all of it at once: it moves and turns as a single rigid piece.
     canvas.save();
-    canvas.translate(_pivotX, _pivotY);
-    canvas.rotate(angle);
+    if (striking) {
+      canvas.translate(_grip.dx, _grip.dy); // the hand
+      canvas.rotate(angle); // the strike, around the hand
+      canvas.rotate(math.pi / 2); // held sideways: handle to the right
+      // The handle's grip point sits in the hand.
+      canvas.translate(0, -_gripOnHandle);
+    } else {
+      canvas.translate(_pivotX, _pivotY);
+    }
 
     final handle = RRect.fromRectAndRadius(
       const Rect.fromLTWH(-4.5, 0, 9, 54),
@@ -116,5 +146,5 @@ class GavelPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant GavelPainter old) =>
-      old.angle != angle || old.ring != ring;
+      old.striking != striking || old.angle != angle || old.ring != ring;
 }
