@@ -75,6 +75,25 @@ class _ActivityScreenState extends State<ActivityScreen> {
   Future<void> _loadHistory() async {
     await context.read<ClauseProvider>().loadHistory();
     if (mounted) setState(() => _hasLoadedHistory = true);
+    await _agreeMovementsAtLimit();
+  }
+
+  // Same rule as Inicio: with every slot taken the user can't choose "cláusulazo", so a movement waiting
+  // for them is voted "pactado" straight away (see `ClauseProvider.mustBeAgreed`). The stats are
+  // re-fetched first so the decision isn't taken on figures loaded by another screen a while ago.
+  Future<void> _agreeMovementsAtLimit() async {
+    if (!mounted) return;
+    final myId = context.read<AuthProvider>().currentUser?.id;
+    final clauseProvider = context.read<ClauseProvider>();
+    if (myId == null ||
+        !clauseProvider.history.any((c) => c.needsConfirmationFrom(myId))) {
+      return;
+    }
+    final userProvider = context.read<UserProvider>();
+    await userProvider.refreshStatsOnly();
+    final stats = userProvider.myStats;
+    if (stats == null) return;
+    await clauseProvider.agreeMovementsAtLimit(myId, stats);
   }
 
   Future<void> _loadWeekStatus() async {
@@ -89,12 +108,24 @@ class _ActivityScreenState extends State<ActivityScreen> {
     }
   }
 
-  Future<void> _confirm(String clauseId, String classification) async {
+  Future<void> _confirm(Clause clause, String classification) async {
+    // A "cláusulazo" chosen in the moment before `_agreeMovementsAtLimit` settles the movement still
+    // can't go through with every slot taken.
+    final myId = context.read<AuthProvider>().currentUser?.id;
+    final stats = context.read<UserProvider>().myStats;
+    final vote = myId != null &&
+            stats != null &&
+            ClauseProvider.mustBeAgreed(clause, myId, stats)
+        ? 'AGREED'
+        : classification;
+
     final ok = await context
         .read<ClauseProvider>()
-        .confirmClassification(clauseId, classification);
+        .confirmClassification(clause.id, vote);
     if (ok && mounted) {
       await context.read<UserProvider>().refreshStatsOnly();
+      // This vote may have taken the last slot, which settles the other movements still waiting.
+      await _agreeMovementsAtLimit();
     }
   }
 
@@ -243,7 +274,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                         clause: clause,
                         currentUserId: myId,
                         onConfirm: (classification) =>
-                            _confirm(clause.id, classification),
+                            _confirm(clause, classification),
                         isConfirming:
                             clauseProvider.confirmingIds.contains(clause.id),
                       );

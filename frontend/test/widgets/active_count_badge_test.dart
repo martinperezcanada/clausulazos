@@ -1,3 +1,4 @@
+import 'package:clausulazos/core/theme/app_theme.dart';
 import 'package:clausulazos/models/clause.dart';
 import 'package:clausulazos/models/user.dart';
 import 'package:clausulazos/widgets/dashboard/active_count_badge.dart';
@@ -81,6 +82,39 @@ void main() {
     expect(_badgeCounts(tester), ['2/2']);
     expect(find.text('2/2 Activas'), findsOneWidget);
     expect(find.text('BLINDADO (2/2)'), findsOneWidget);
+  });
+
+  testWidgets('the count badge is red only with every slot taken',
+      (tester) async {
+    Color badgeColor(int active) {
+      final box = tester.widget<Container>(find
+          .descendant(
+              of: find.byWidgetPredicate(
+                  (w) => w is ActiveCountBadge && w.active == active),
+              matching: find.byType(Container))
+          .first);
+      return (box.decoration! as BoxDecoration).color!;
+    }
+
+    await tester.pumpWidget(
+        _home(performed: _slots(0), received: _slots(1), listedReceived: 1));
+    expect(badgeColor(0), AppColors.infoBlue.withValues(alpha: 0.15));
+    expect(badgeColor(1), AppColors.infoBlue.withValues(alpha: 0.15));
+
+    await tester.pumpWidget(
+        _home(performed: _slots(2), received: _slots(0), listedPerformed: 2));
+    expect(badgeColor(2), AppColors.dangerRed.withValues(alpha: 0.15));
+    expect(badgeColor(0), AppColors.infoBlue.withValues(alpha: 0.15));
+  });
+
+  testWidgets('with 2/2 received the BLINDADO pill is red', (tester) async {
+    await tester.pumpWidget(
+        _home(performed: _slots(0), received: _slots(2), listedReceived: 2));
+    final pill = tester.widget<Container>(find
+        .ancestor(
+            of: find.text('BLINDADO (2/2)'), matching: find.byType(Container))
+        .first);
+    expect((pill.decoration! as BoxDecoration).color, AppColors.dangerRed);
   });
 
   testWidgets('executed and received use their own counters', (tester) async {

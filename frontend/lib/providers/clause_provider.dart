@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../core/network/api_client.dart';
 import '../models/clause.dart';
+import '../models/user.dart';
 import '../repositories/clause_repository.dart';
 
 class ClauseProvider extends ChangeNotifier {
@@ -75,6 +76,28 @@ class ClauseProvider extends ChangeNotifier {
     } finally {
       confirmingIds.remove(clauseId);
       notifyListeners();
+    }
+  }
+
+  /// League rule: a manager with every slot taken can't be part of another clausulazo on that side
+  /// (performed slots for a movement they made, received slots for one made on them). For them such a
+  /// movement can only be "pactado". `stats` are the manager's own slot figures (`/users/me/stats`).
+  static bool mustBeAgreed(Clause clause, String userId, UserStats stats) =>
+      clause.fromUserId == userId
+          ? stats.performed.isComplete
+          : stats.received.isComplete;
+
+  /// Votes "pactado" for `userId` on every movement still waiting for them that `mustBeAgreed`, so they
+  /// are never asked to choose. Call it with stats that have just been loaded.
+  Future<void> agreeMovementsAtLimit(String userId, UserStats stats) async {
+    final atLimit = history
+        .where((c) =>
+            c.needsConfirmationFrom(userId) &&
+            !confirmingIds.contains(c.id) &&
+            mustBeAgreed(c, userId, stats))
+        .toList();
+    for (final clause in atLimit) {
+      await confirmClassification(clause.id, 'AGREED');
     }
   }
 

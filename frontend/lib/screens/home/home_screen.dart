@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/notifications/expiration_notices.dart';
+import '../../core/storage/dismissed_alerts_storage.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/clause.dart';
 import '../../models/user.dart';
@@ -28,15 +29,35 @@ class HomeScreen extends StatefulWidget {
 // WidgetsBindingObserver refreshes data when the app returns to the foreground (a slot may have
 // expired in the meantime).
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
-  // Alerts swiped away this session (`'<userId>|<alertId>'`). Static so it survives Inicio being rebuilt
-  // on tab switches; cleared on the next app start.
+  // Plain alerts swiped away (`'<userId>|<alertId>'`). Static so it survives Inicio being rebuilt on tab
+  // switches, and saved on the device so it also survives closing the app. A movement waiting for
+  // "Cláusulazo" / "Pactado" is never in here: it can't be dismissed.
   static final Set<String> _dismissedAlerts = <String>{};
+  static final DismissedAlertsStorage _dismissedAlertsStorage =
+      DismissedAlertsStorage();
+  // Loaded once per app start. Plain alerts stay hidden until it completes, so one dismissed earlier
+  // never flashes.
+  static Future<void>? _dismissedAlertsLoad;
+  static bool _dismissedAlertsLoaded = false;
+
+  static Future<void> _loadDismissedAlerts() async {
+    _dismissedAlerts.addAll(await _dismissedAlertsStorage.read());
+    _dismissedAlertsLoaded = true;
+  }
 
   Timer? _ticker;
+  late final UserProvider _userProvider;
 
   @override
   void initState() {
     super.initState();
+    (_dismissedAlertsLoad ??= _loadDismissedAlerts()).then((_) {
+      if (!mounted) return;
+      _forgetEndedLimitAlerts();
+      setState(() {});
+    });
+    _userProvider = context.read<UserProvider>()
+      ..addListener(_forgetEndedLimitAlerts);
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
     // Keeps the cooldown countdowns moving and re-fetches the sync status, so "Sincronizado hace X"
@@ -66,13 +87,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         context.read<ClauseProvider>().loadHistory(),
         context.read<UserProvider>().refreshStatsOnly(),
       ]);
+      await _agreeMovementsAtLimit();
     }
     return result;
+  }
+
+  // With every slot taken the user can't choose "cláusulazo": a movement waiting for them is voted
+  // "pactado" straight away, without asking (see `ClauseProvider.mustBeAgreed`). Runs after the stats
+  // and movements have just been loaded, and not at all if that load failed.
+  Future<void> _agreeMovementsAtLimit() async {
+    if (!mounted) return;
+    final myId = context.read<AuthProvider>().currentUser?.id;
+    final userProvider = context.read<UserProvider>();
+    final stats = userProvider.myStats;
+    if (myId == null || stats == null || userProvider.errorMessage != null) {
+      return;
+    }
+    await context.read<ClauseProvider>().agreeMovementsAtLimit(myId, stats);
+  }
+
+  // The "límite superado" alerts have a fixed id, so a dismissal is only kept while that excess lasts:
+  // once the user is back within the limit it is forgotten, and a later excess is shown as a new alert.
+  void _forgetEndedLimitAlerts() {
+    final stats = _userProvider.myStats;
+    final myId = context.read<AuthProvider>().currentUser?.id;
+    if (stats == null || myId == null || !_dismissedAlertsLoaded) return;
+
+    final ended = [
+      if (!stats.performed.isExceeded) '$myId|limit:performed',
+      if (!stats.received.isExceeded) '$myId|limit:received',
+    ].where(_dismissedAlerts.contains).toList();
+    if (ended.isEmpty) return;
+
+    _dismissedAlerts.removeAll(ended);
+    _dismissedAlertsStorage.write(_dismissedAlerts);
+  }
+
+  void _dismissAlert(String? userId, String alertId) {
+    setState(() => _dismissedAlerts.add('${userId ?? ''}|$alertId'));
+    _dismissedAlertsStorage.write(_dismissedAlerts);
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    _userProvider.removeListener(_forgetEndedLimitAlerts);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -82,11 +141,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) _refresh();
   }
 
-  Future<void> _refresh() => Future.wait([
-        context.read<UserProvider>().refreshAll(),
-        context.read<ClauseProvider>().loadHistory(),
-        context.read<FantasySyncProvider>().load(),
-      ]);
+  Future<void> _refresh() async {
+    await Future.wait([
+      context.read<UserProvider>().refreshAll(),
+      context.read<ClauseProvider>().loadHistory(),
+      context.read<FantasySyncProvider>().load(),
+    ]);
+    await _agreeMovementsAtLimit();
+  }
 
   Future<void> _confirmPending(String clauseId, String classification) async {
     final ok = await context
@@ -94,6 +156,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         .confirmClassification(clauseId, classification);
     if (ok && mounted) {
       await context.read<UserProvider>().refreshStatsOnly();
+      // This vote may have taken the last slot, which settles the other movements still waiting.
+      await _agreeMovementsAtLimit();
     }
   }
 
@@ -196,9 +260,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ? const <ExpirationNotice>[]
         : ExpirationNotices.build(clauses: myClauses, currentUserId: myId);
 
+    // Movements the user has to classify. One they can only settle as "pactado" because their slots are
+    // full isn't offered: it is voted for them (see `_agreeMovementsAtLimit`).
     final pendingForMe = myId == null
         ? const <Clause>[]
-        : (myClauses.where((c) => c.needsConfirmationFrom(myId)).toList()
+        : (myClauses
+            .where((c) =>
+                c.needsConfirmationFrom(myId) &&
+                !(stats != null && ClauseProvider.mustBeAgreed(c, myId, stats)))
+            .toList()
           ..sort((a, b) => a.createdAt.compareTo(b.createdAt)));
 
     final activePerformed = myId == null
@@ -215,16 +285,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             .toList()
           ..sort((a, b) => a.expiresAt.compareTo(b.expiresAt)));
 
-    // Alerts swiped away this session stay hidden (see `_dismissedAlerts`), so rebuilding or re-entering
-    // Inicio doesn't bring them back.
+    // The two kinds of IMPORTANTE alert. A movement waiting for this user's classification
+    // (`pendingForMe`) can't be dismissed and stays until they choose. Plain alerts (`fallbackAlerts`)
+    // can be swiped away, and stay hidden afterwards (see `_dismissedAlerts`).
     bool isDismissed(String alertId) =>
         _dismissedAlerts.contains('${myId ?? ''}|$alertId');
-    final visiblePending =
-        pendingForMe.where((c) => !isDismissed('pending:${c.id}')).toList();
 
-    final importantClause =
-        visiblePending.isEmpty ? null : visiblePending.first;
-    final fallbackAlerts = _buildFallbackAlerts(stats, notices, isDismissed);
+    final importantClause = pendingForMe.isEmpty ? null : pendingForMe.first;
+    final fallbackAlerts = _dismissedAlertsLoaded
+        ? _buildFallbackAlerts(stats, notices, isDismissed)
+        : const <(String, bool, String)>[];
     final fallbackMessage = importantClause == null && fallbackAlerts.isNotEmpty
         ? fallbackAlerts.first
         : null;
@@ -232,16 +302,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ? 'pending:${importantClause.id}'
         : fallbackMessage?.$3;
     // Alerts still waiting, the visible one included: more than one means a second card sits behind.
-    final alertCount = visiblePending.length + fallbackAlerts.length;
+    final alertCount = pendingForMe.length + fallbackAlerts.length;
 
     // The alert behind the main one, which becomes the main one when the current one is dismissed (same
     // order: pending clauses first, then fallback alerts).
     Clause? nextClause;
     (String, bool, String)? nextFallback;
     if (alertCount > 1) {
-      if (visiblePending.length >= 2) {
-        nextClause = visiblePending[1];
-      } else if (visiblePending.length == 1) {
+      if (pendingForMe.length >= 2) {
+        nextClause = pendingForMe[1];
+      } else if (pendingForMe.length == 1) {
         nextFallback = fallbackAlerts.first;
       } else {
         nextFallback = fallbackAlerts[1];
@@ -291,11 +361,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         // away hands its slot to the card behind.
                         _ImportantAlertsDeck(
                           mainId: importantAlertId,
+                          mainDismissible: importantClause == null,
                           mainCard: importantAlertId == null
                               ? null
                               : ImportantCard(
                                   pendingClause: importantClause,
-                                  pendingCount: visiblePending.length,
+                                  pendingCount: pendingForMe.length,
                                   fallbackMessage: fallbackMessage?.$1,
                                   fallbackActionable:
                                       fallbackMessage?.$2 ?? false,
@@ -314,13 +385,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   pendingClause: nextClause,
                                   // What the counter reads once this one is the main card.
                                   pendingCount: nextClause != null
-                                      ? visiblePending.length - 1
+                                      ? pendingForMe.length - 1
                                       : 0,
                                   fallbackMessage: nextFallback?.$1,
                                   fallbackActionable: nextFallback?.$2 ?? false,
                                 ),
-                          onDismissed: (alertId) => setState(() =>
-                              _dismissedAlerts.add('${myId ?? ''}|$alertId')),
+                          onDismissed: (alertId) =>
+                              _dismissAlert(myId, alertId),
                         ),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
@@ -416,8 +487,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 }
 
-/// The stack of IMPORTANTE alerts: the main card (swipe left or right to dismiss, no confirmation) and,
-/// when more wait, one card behind it peeking out on the right.
+/// The stack of IMPORTANTE alerts: the main card (swipe left or right to dismiss, no confirmation, unless
+/// `mainDismissible` is false) and, when more wait, one card behind it peeking out on the right.
 ///
 /// While the main card is dragged or flying out, the card behind follows the same progress: it slides
 /// into the main slot, warms up to the main card's surface and fades its content in. So when the next
@@ -427,6 +498,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 class _ImportantAlertsDeck extends StatefulWidget {
   const _ImportantAlertsDeck({
     required this.mainId,
+    required this.mainDismissible,
     required this.mainCard,
     required this.nextId,
     required this.nextCard,
@@ -434,6 +506,8 @@ class _ImportantAlertsDeck extends StatefulWidget {
   });
 
   final String? mainId;
+  // False for a movement waiting to be classified: it can't be swiped away.
+  final bool mainDismissible;
   final Widget? mainCard;
   final String? nextId;
   final Widget? nextCard;
@@ -481,7 +555,9 @@ class _ImportantAlertsDeckState extends State<_ImportantAlertsDeck> {
                     ),
                   Dismissible(
                     key: ValueKey('important-alert-$mainId'),
-                    direction: DismissDirection.horizontal,
+                    direction: widget.mainDismissible
+                        ? DismissDirection.horizontal
+                        : DismissDirection.none,
                     // With another alert waiting there is no collapse: the card behind takes the slot. The last alert
                     // still collapses.
                     resizeDuration: nextCard == null
