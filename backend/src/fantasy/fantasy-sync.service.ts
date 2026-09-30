@@ -23,6 +23,11 @@ export class FantasySyncService {
     '2026-09-13T19:50:00+02:00',
   );
 
+  // The sync currently running, if any (see `runScheduledSync`).
+  private inFlightSync: ReturnType<
+    FantasySyncService['syncActivity']
+  > | null = null;
+
   constructor(
   private readonly prisma: PrismaService,
   private readonly fantasyAuthService: FantasyAuthService,
@@ -464,8 +469,19 @@ private async getPlayerDetails(
   /**
    * Runs `syncActivity()` and records the outcome so the dashboard can show "Sincronizado hace X min".
    * `lastSuccessAt` only moves on runs that complete; failures are recorded separately.
+   *
+   * Only one sync runs at a time in this process: a call arriving while one is in flight (the cron
+   * overlapping a slow run, or the admin's manual sync) waits for that run and gets its result instead of
+   * starting a second import. The slot is freed when the run settles, whether it succeeded or failed.
    */
-  async runScheduledSync() {
+  runScheduledSync() {
+    this.inFlightSync ??= this.executeScheduledSync().finally(() => {
+      this.inFlightSync = null;
+    });
+    return this.inFlightSync;
+  }
+
+  private async executeScheduledSync() {
     await this.recordAttempt();
 
     try {

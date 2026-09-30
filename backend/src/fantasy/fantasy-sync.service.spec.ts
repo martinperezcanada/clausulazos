@@ -32,6 +32,9 @@ describeOnTestDb('FantasySyncService.syncActivity (integration)', () => {
   let playerNames: Record<string, string | null>;
   let playerImages: Record<string, string>;
   let playerRequests: number;
+  let activityRequests: number;
+  // Set to an HTTP error status to make LALIGA's activity endpoint fail.
+  let activityStatus: number;
 
   const originalFetch = global.fetch;
 
@@ -56,7 +59,10 @@ describeOnTestDb('FantasySyncService.syncActivity (integration)', () => {
     global.fetch = jest.fn(async (input: any) => {
       const url = String(input);
       if (url.includes('/activity/')) {
-        return new Response(JSON.stringify(activities), { status: 200 });
+        activityRequests++;
+        return new Response(JSON.stringify(activities), {
+          status: activityStatus,
+        });
       }
       const player = url.match(/\/player\/([^/]+)\//);
       if (player) {
@@ -92,6 +98,8 @@ describeOnTestDb('FantasySyncService.syncActivity (integration)', () => {
     playerNames = {};
     playerImages = {};
     playerRequests = 0;
+    activityRequests = 0;
+    activityStatus = 200;
     await prisma.notification.deleteMany();
     await prisma.clause.deleteMany();
     await prisma.user.deleteMany();
@@ -213,6 +221,153 @@ describeOnTestDb('FantasySyncService.syncActivity (integration)', () => {
     expect(await visibleClauses()).toHaveLength(1);
     // The player name is only looked up while a row still needs it.
     expect(playerRequests).toBe(1);
+  });
+
+  it('the same activity synced 20 times is still a single movement', async () => {
+    await makeUser('Martin', '111');
+    await makeUser('Alex', '222');
+    activities = [
+      clauseActivity({
+        id: 9001,
+        from: '111',
+        to: '222',
+        playerMasterId: 55,
+        amount: 100,
+        at: minutesAgo(5),
+      }),
+    ];
+    playerNames = { '55': 'Pedri' };
+    playerImages = { '55': img('55') };
+
+    let created = 0;
+    for (let run = 0; run < 20; run++) {
+      const result = await sync.runScheduledSync();
+      expect(result.detectedClauseTransfers).toBe(1);
+      created += result.created;
+    }
+
+    expect(created).toBe(1);
+    expect(await prisma.clause.count()).toBe(1);
+    expect(
+      await prisma.clause.count({ where: { laligaActivityId: '9001' } }),
+    ).toBe(1);
+  });
+
+  it('two imports of the same activities at the same time store each movement once', async () => {
+    const martin = await makeUser('Martin', '111');
+    const alex = await makeUser('Alex', '222');
+    // One movement already registered by hand, one only known to LALIGA.
+    await clauses.create(martin.id, alex.id);
+    activities = [
+      clauseActivity({
+        id: 9001,
+        from: '111',
+        to: '222',
+        playerMasterId: 55,
+        amount: 100,
+        at: minutesAgo(5),
+      }),
+      clauseActivity({
+        id: 9002,
+        from: '222',
+        to: '111',
+        playerMasterId: 56,
+        amount: 200,
+        at: minutesAgo(3),
+      }),
+    ];
+    playerNames = { '55': 'Pedri', '56': 'Gavi' };
+
+    // `syncActivity` directly, bypassing the single-run guard of `runScheduledSync`.
+    const [a, b] = await Promise.all([
+      sync.syncActivity(),
+      sync.syncActivity(),
+    ]);
+
+    expect(a.created + b.created).toBe(1);
+    expect(a.reconciled + b.reconciled).toBe(1);
+    expect(await prisma.clause.count()).toBe(2);
+    const visible = await visibleClauses();
+    expect(visible.map((c) => c.laligaActivityId).sort()).toEqual([
+      '9001',
+      '9002',
+    ]);
+  });
+
+  it('a sync requested while another is running joins it instead of starting a second one', async () => {
+    await makeUser('Martin', '111');
+    await makeUser('Alex', '222');
+    activities = [
+      clauseActivity({
+        id: 9001,
+        from: '111',
+        to: '222',
+        playerMasterId: 55,
+        amount: 100,
+        at: minutesAgo(5),
+      }),
+    ];
+    playerNames = { '55': 'Pedri' };
+
+    const [a, b, c] = await Promise.all([
+      sync.runScheduledSync(),
+      sync.runScheduledSync(),
+      sync.runScheduledSync(),
+    ]);
+
+    expect(activityRequests).toBe(1);
+    expect(a.created).toBe(1);
+    expect(b).toBe(a);
+    expect(c).toBe(a);
+    expect(await prisma.clause.count()).toBe(1);
+
+    // The slot is free again once that run has finished.
+    const next = await sync.runScheduledSync();
+    expect(activityRequests).toBe(2);
+    expect(next.created).toBe(0);
+    expect(next.alreadyExists).toBe(1);
+  });
+
+  it('a failed sync keeps lastSuccessfulSyncAt and does not block the next one', async () => {
+    await makeUser('Martin', '111');
+    await makeUser('Alex', '222');
+
+    await sync.runScheduledSync();
+    const afterSuccess = await sync.getStatus();
+    expect(afterSuccess.lastStatus).toBe('SUCCESS');
+    expect(afterSuccess.lastSuccessfulSyncAt).not.toBeNull();
+
+    activityStatus = 503;
+    await expect(sync.runScheduledSync()).rejects.toThrow(
+      'LALIGA API respondió 503',
+    );
+    const afterFailure = await sync.getStatus();
+    expect(afterFailure.lastStatus).toBe('FAILURE');
+    expect(afterFailure.lastSuccessfulSyncAt).toEqual(
+      afterSuccess.lastSuccessfulSyncAt,
+    );
+
+    // LALIGA is back, with a movement that happened meanwhile: the next run imports it.
+    activityStatus = 200;
+    activities = [
+      clauseActivity({
+        id: 9001,
+        from: '111',
+        to: '222',
+        playerMasterId: 55,
+        amount: 100,
+        at: minutesAgo(5),
+      }),
+    ];
+    playerNames = { '55': 'Pedri' };
+    const retry = await sync.runScheduledSync();
+    expect(retry.created).toBe(1);
+
+    const afterRetry = await sync.getStatus();
+    expect(afterRetry.lastStatus).toBe('SUCCESS');
+    expect(afterRetry.lastSuccessfulSyncAt!.getTime()).toBeGreaterThanOrEqual(
+      afterSuccess.lastSuccessfulSyncAt!.getTime(),
+    );
   });
 
   it('consolidates an existing duplicate (incomplete + LALIGA rows) into a single movement', async () => {
